@@ -13,3 +13,4 @@ shipping both ways and earns nothing.
 - **COD-3** A deposit may be requested for risk scores of 70 or more, or orders over 15,000 EGP. It is at most 20% of the total and always needs approval.
 - **COD-4** Cancelling an order is a staff decision. Recommend it only after two unanswered contact attempts and 7 days without confirmation.
 - **COD-5** Blocking a customer from COD is a staff decision and is never automated.
+- **COD-6** Escalate step by step: a reminder message first, then a phone call once the reminder has gone unanswered for 24 hours. Orders covered by COD-2 are called straight away.

@@ -132,6 +132,8 @@ class CaseAction(Base):
     expected_value: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     tier: Mapped[str] = mapped_column(String(20))  # auto | approval | human_only
     tier_reasons: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    ready: Mapped[bool] = mapped_column(Boolean, default=True)  # False: a later escalation step
+    waiting_for: Mapped[str | None] = mapped_column(String(300), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default=ActionStatus.PROPOSED)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

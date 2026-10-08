@@ -71,6 +71,14 @@ back to it. Then plain code takes over (`decision/score.py`):
   or 500 EGP need approval — so no prompt or policy edit can loosen them. Every
   tier comes with its reasons and the rule each one enforces.
 
+- **Escalation steps** (`decision/escalation.py`): some actions only make sense
+  after a cheaper one has failed. For an unconfirmed order the phone call waits
+  until a reminder has gone unanswered for 24 hours, and cancellation until the
+  call has failed (COD-4, COD-6). Actions that are ready now rank first, and
+  only a ready action can be recommended; later steps are kept as the plan's
+  next moves. On paper the call is worth more than the reminder, but the
+  reminder costs almost nothing and often solves the problem alone.
+
 The decision engine imports nothing from the model, database or store
 (`lint-imports` enforces it), and CI requires 100% branch coverage for it.
 

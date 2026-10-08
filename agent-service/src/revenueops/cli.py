@@ -80,6 +80,8 @@ def cmd_plan(limit: int, case_id: str | None) -> int:
                     print(
                         f"   {mark}{a.rank}. {a.action_type:<28} {a.tier:<11} EV {a.expected_value:>9} EGP  {a.params}"
                     )
+                    if not a.ready:
+                        print(f"        later: {a.waiting_for}")
         _print_stopped(run.stopped)
     return 1 if run.failed and not run.planned else 0
 

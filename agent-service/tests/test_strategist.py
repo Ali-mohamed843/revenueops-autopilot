@@ -104,12 +104,14 @@ def test_plan_is_scored_ranked_and_stored(session: Session) -> None:
     assert case.status == CaseStatus.PLANNED
     assert case.plan is not None and case.plan["approach"] == "Re-confirm before anything else."
     # Ranked by the scorer, not by the model's order.
-    assert [(a.rank, a.action_type, a.tier, a.recommended) for a in case.actions] == [
-        (1, "request_phone_confirmation", "human_only", True),
-        (2, "send_confirmation_reminder", "auto", False),
-        (3, "recommend_cancellation", "human_only", False),
+    # Escalation steps come after the step they wait for, whatever their expected value.
+    assert [(a.rank, a.action_type, a.tier, a.recommended, a.ready) for a in case.actions] == [
+        (1, "send_confirmation_reminder", "auto", True, True),
+        (2, "request_phone_confirmation", "human_only", False, False),
+        (3, "recommend_cancellation", "human_only", False, False),
     ]
-    reminder = case.actions[1]
+    assert case.actions[1].waiting_for == "Only after send_confirmation_reminder has gone unanswered for 24h"
+    reminder = case.actions[0]
     assert reminder.expected_value == Decimal("199.50") and reminder.policy_refs == ["COD-1", "COMM-1"]
     assert reminder.tier_reasons == [
         {"tier": "auto", "text": "Within every limit, and harmless if wrong", "rule": None}
@@ -117,9 +119,9 @@ def test_plan_is_scored_ranked_and_stored(session: Session) -> None:
     planned = case.events[-1]
     assert planned.type == "planned"
     assert planned.data["recommended"] == {
-        "action": "request_phone_confirmation",
-        "tier": "human_only",
-        "expected_value": "292.00",
+        "action": "send_confirmation_reminder",
+        "tier": "auto",
+        "expected_value": "199.50",
     }
 
 
@@ -133,9 +135,10 @@ def test_replanning_supersedes_the_old_plan(session: Session) -> None:
     case = investigated_case(session)
     plan_cases(session, FakeStore(), FakeLLM([[tool_use("submit_strategy", strategy(REMINDER))]]), [case])
     case.status = CaseStatus.PLANNING_FAILED  # e.g. a retry
-    plan_cases(session, FakeStore(), FakeLLM([[tool_use("submit_strategy", strategy(PHONE))]]), [case])
+    plan_cases(session, FakeStore(), FakeLLM([[tool_use("submit_strategy", strategy(REMINDER, PHONE))]]), [case])
     assert [(a.action_type, a.status) for a in case.actions] == [
         ("send_confirmation_reminder", ActionStatus.SUPERSEDED),
+        ("send_confirmation_reminder", ActionStatus.PROPOSED),
         ("request_phone_confirmation", ActionStatus.PROPOSED),
     ]
 
@@ -169,8 +172,34 @@ def test_case_detail_api_shows_the_current_plan(session: Session) -> None:
     finally:
         app.dependency_overrides.clear()
     assert body["status"] == "planned"
-    assert [(a["action_type"], a["tier"], a["expected_value"]) for a in body["actions"]] == [
-        ("request_phone_confirmation", "human_only", "292.00"),
-        ("send_confirmation_reminder", "auto", "199.50"),
+    assert [(a["action_type"], a["tier"], a["expected_value"], a["ready"]) for a in body["actions"]] == [
+        ("send_confirmation_reminder", "auto", "199.50", True),
+        ("request_phone_confirmation", "human_only", "292.00", False),
     ]
     assert body["plan"]["approach"] == "Re-confirm before anything else."
+
+
+def test_prompt_shows_escalation_steps(session: Session) -> None:
+    case = investigated_case(session)
+    llm = FakeLLM([[tool_use("submit_strategy", strategy(REMINDER))]])
+    run_plan(case, llm)
+    prompt = llm.requests[0]["messages"][0]["content"]
+    assert "(escalation: only after send_confirmation_reminder has gone unanswered for 24h)" in prompt
+
+
+def test_an_escalation_step_without_its_first_step_goes_back(session: Session) -> None:
+    case = investigated_case(session)
+    llm = FakeLLM(
+        [[tool_use("submit_strategy", strategy(PHONE))], [tool_use("submit_strategy", strategy(PHONE, REMINDER))]]
+    )
+    result = run_plan(case, llm)
+    rejection = llm.requests[1]["messages"][-1]["content"][0]["content"]
+    assert "request_phone_confirmation is an escalation step after send_confirmation_reminder" in rejection
+    assert [p.action for p in result.output.proposals] == ["request_phone_confirmation", "send_confirmation_reminder"]
+
+
+def test_refusal_risk_orders_may_be_called_straight_away(session: Session) -> None:
+    case = investigated_case(session)
+    case.case_type = "refusal_risk"
+    llm = FakeLLM([[tool_use("submit_strategy", strategy(PHONE))]])
+    assert run_plan(case, llm).turns == 1

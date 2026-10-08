@@ -17,6 +17,7 @@ from revenueops.agents.llm import LLMClient
 from revenueops.agents.loop import AgentResult, Submit, ToolCall, run_agent
 from revenueops.cases.models import Case
 from revenueops.decision.catalogue import ActionSpec, Param
+from revenueops.decision.escalation import step_for
 from revenueops.policies import Policy
 
 
@@ -43,6 +44,8 @@ Rules:
 - Use only the listed actions, with parameters inside the listed ranges.
 - Follow the policies. Do not propose an action a policy forbids for this case.
 - For each action, cite the rule ids (like COD-2) that support or limit it.
+- Some actions are escalation steps that only run after an earlier action has gone unanswered. If \
+you propose one, also propose the earlier action: together they form the plan.
 - Base your reasoning on the findings. Do not invent facts.
 - You do not decide whether an action runs automatically or needs approval, and you do not estimate \
 probabilities: the service calculates both after you answer. Just propose what would work best.
@@ -75,6 +78,9 @@ def build_prompt(case: Case, actions: list[ActionSpec], policies: list[Policy]) 
     ]
     for a in actions:
         lines.append(f"  - {a.key}: {a.description}")
+        step = step_for(a.key, case.case_type)
+        if step and step.after in {x.key for x in actions}:
+            lines.append(f"      (escalation: only after {step.after} has gone unanswered for {step.wait_hours:g}h)")
         lines.extend(_param_line(p) for p in a.params)
     lines.append("")
     lines.append("Policies:")
@@ -85,7 +91,11 @@ def build_prompt(case: Case, actions: list[ActionSpec], policies: list[Policy]) 
 
 
 def make_check(
-    actions: list[ActionSpec], policies: list[Policy], value_at_risk: Decimal
+    case_type: str,
+    actions: list[ActionSpec],
+    policies: list[Policy],
+    value_at_risk: Decimal,
+    done: frozenset[str] = frozenset(),
 ) -> Callable[[Strategy, list[ToolCall]], None]:
     by_key = {a.key: a for a in actions}
     rules = {r for p in policies for r in p.rules}
@@ -104,6 +114,11 @@ def make_check(
             if key in seen:
                 raise ValueError(f"{proposal.action} is proposed twice with the same parameters")
             seen.add(key)
+        proposed = {p.action for p in strategy.proposals}
+        for action in proposed:
+            step = step_for(action, case_type)
+            if step and step.after in by_key and step.after not in proposed | done:
+                raise ValueError(f"{action} is an escalation step after {step.after}: propose {step.after} as well")
 
     return check
 
@@ -118,7 +133,7 @@ def plan(case: Case, actions: list[ActionSpec], policies: list[Policy], llm: LLM
             name="submit_strategy",
             description="Submit your proposed actions. Call exactly once.",
             schema=Strategy,
-            check=make_check(actions, policies, case.value_at_risk),
+            check=make_check(case.case_type, actions, policies, case.value_at_risk),
         ),
         max_turns=4,
     )

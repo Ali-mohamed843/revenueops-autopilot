@@ -13,13 +13,15 @@ policy edit or model output can loosen them.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import IntEnum
 from typing import Any
 
 from revenueops.decision import priors
 from revenueops.decision.catalogue import CATALOGUE, Kind
+from revenueops.decision.escalation import readiness
 
 CENTS = Decimal("0.01")
 
@@ -48,6 +50,8 @@ class CaseFacts:
     case_type: str
     value_at_risk: Decimal
     confidence: float | None = None  # the investigation's confidence in its own findings
+    done_hours_ago: Mapping[str, float] = field(default_factory=dict)  # actions already carried out
+    available: frozenset[str] | None = None  # actions this store can do; None = the whole catalogue
 
 
 @dataclass(frozen=True)
@@ -67,6 +71,8 @@ class Score:
     expected_value: Decimal
     tier: Tier
     reasons: tuple[Reason, ...]
+    ready: bool = True  # False while an earlier escalation step still has to work
+    waiting_for: str | None = None
 
 
 def score(action: str, params: dict[str, Any], case: CaseFacts) -> Score:
@@ -83,6 +89,8 @@ def score(action: str, params: dict[str, Any], case: CaseFacts) -> Score:
     expected_value = (Decimal(str(p_with - p_without)) * value - cost).quantize(CENTS)
 
     reasons = _reasons(action, params, case)
+    available = case.available if case.available is not None else frozenset(CATALOGUE)
+    when = readiness(action, case.case_type, case.done_hours_ago, available)
     return Score(
         action=action,
         params=params,
@@ -92,6 +100,8 @@ def score(action: str, params: dict[str, Any], case: CaseFacts) -> Score:
         expected_value=expected_value,
         tier=max(r.tier for r in reasons),
         reasons=reasons,
+        ready=when.ready,
+        waiting_for=when.waiting_for,
     )
 
 
@@ -151,10 +161,11 @@ def _reasons(action: str, params: dict[str, Any], case: CaseFacts) -> tuple[Reas
 
 
 def rank(scores: list[Score]) -> list[Score]:
-    """Best first: highest expected value, then the least oversight."""
-    return sorted(scores, key=lambda s: (-s.expected_value, s.tier))
+    """Best first: actions ready now, then highest expected value, then the least oversight."""
+    return sorted(scores, key=lambda s: (not s.ready, -s.expected_value, s.tier))
 
 
 def recommended(ranked: list[Score]) -> Score | None:
-    """The top action, if any action is expected to gain anything at all."""
-    return ranked[0] if ranked and ranked[0].expected_value > 0 else None
+    """The best action that can run now, if it is expected to gain anything at all."""
+    best = ranked[0] if ranked else None
+    return best if best is not None and best.ready and best.expected_value > 0 else None

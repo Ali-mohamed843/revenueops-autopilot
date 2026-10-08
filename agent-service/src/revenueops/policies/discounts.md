@@ -9,3 +9,4 @@ applies_to: abandoned_cart, late_shipment
 - **DISC-2** Discounts above 10% or worth more than 500 EGP need approval. Discounts above 20% are not allowed.
 - **DISC-3** Goodwill discounts for delays: up to 5% and 250 EGP automatically; more needs approval.
 - **DISC-4** No discounts for a customer who refused a delivery in the last 90 days.
+- **DISC-5** Offer a cart discount only after a plain reminder has gone unanswered for 24 hours.

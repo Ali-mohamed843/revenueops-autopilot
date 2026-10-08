@@ -65,6 +65,8 @@ class CaseActionOut(BaseModel):
     expected_value: Decimal
     tier: str
     tier_reasons: list[dict[str, Any]]
+    ready: bool
+    waiting_for: str | None
     status: str
 
 

@@ -8,6 +8,7 @@ import pytest
 
 from revenueops.decision import priors
 from revenueops.decision.catalogue import CATALOGUE, actions_for
+from revenueops.decision.escalation import STEPS, readiness
 from revenueops.decision.score import CaseFacts, Score, Tier, rank, recommended, score
 from revenueops.policies import all_policies
 
@@ -180,12 +181,12 @@ def test_tier_names() -> None:
 # ------------------------------------------------------------------- ranking
 
 
-def test_ranks_by_expected_value_then_least_oversight() -> None:
-    case = facts("unconfirmed_order")
-    phone = score("request_phone_confirmation", {}, case)  # EV 292, human_only
-    reminder = score("send_confirmation_reminder", {"channel": "sms"}, case)  # EV 199.50, auto
-    cancel = score("recommend_cancellation", {}, case)  # EV 0
-    ranked = rank([cancel, reminder, phone])
+def test_ranks_ready_actions_first_then_expected_value_then_least_oversight() -> None:
+    case = facts("refusal_risk")  # here the call is not an escalation step (COD-2)
+    phone = score("request_phone_confirmation", {}, case)  # EV 192, human_only
+    reminder = score("send_confirmation_reminder", {"channel": "sms"}, case)  # EV 99.50, auto
+    later = score("recommend_cancellation", {}, case)  # after a failed call
+    ranked = rank([later, reminder, phone])
     assert [s.action for s in ranked] == [
         "request_phone_confirmation",
         "send_confirmation_reminder",
@@ -197,6 +198,22 @@ def test_ranks_by_expected_value_then_least_oversight() -> None:
     assert rank([same_value, Score("a", {}, 0.5, 0.4, D(0), D(10), Tier.AUTO, ())])[0].action == "a"
 
 
+def test_a_cheap_reminder_comes_before_a_call_for_unconfirmed_orders() -> None:
+    case = facts("unconfirmed_order")
+    phone = score("request_phone_confirmation", {}, case)
+    reminder = score("send_confirmation_reminder", {"channel": "sms"}, case)
+    assert phone.expected_value > reminder.expected_value  # the call is worth more on paper...
+    ranked = rank([phone, reminder])
+    assert [s.action for s in ranked] == ["send_confirmation_reminder", "request_phone_confirmation"]
+    assert recommended(ranked) is reminder  # ...but the reminder goes first
+    assert not phone.ready
+    assert phone.waiting_for == "Only after send_confirmation_reminder has gone unanswered for 24h"
+
+
+def test_nothing_is_recommended_while_every_action_waits() -> None:
+    assert recommended(rank([score("request_phone_confirmation", {}, facts("unconfirmed_order"))])) is None
+
+
 def test_nothing_is_recommended_without_a_gain() -> None:
     assert recommended([score("recommend_cancellation", {}, facts("unconfirmed_order"))]) is None
     assert recommended([]) is None
@@ -206,7 +223,54 @@ def test_nothing_is_recommended_without_a_gain() -> None:
 
 
 def test_every_rule_the_scorer_cites_exists_in_the_policies() -> None:
-    source = (Path(__file__).parent.parent / "src" / "revenueops" / "decision" / "score.py").read_text(encoding="utf-8")
+    decision = Path(__file__).parent.parent / "src" / "revenueops" / "decision"
+    source = "".join((decision / f).read_text(encoding="utf-8") for f in ("score.py", "escalation.py"))
     cited = set(re.findall(r"\b[A-Z]{2,4}-\d+\b", source))
     known = {rule for p in all_policies() for rule in p.rules}
     assert cited and cited <= known, cited - known
+
+
+# ---------------------------------------------------------------- escalation
+
+AVAILABLE = frozenset(CATALOGUE)
+
+
+@pytest.mark.parametrize(
+    ("done", "available", "ready", "waiting"),
+    [
+        ({}, AVAILABLE, False, "Only after send_confirmation_reminder has gone unanswered for 24h"),
+        (
+            {"send_confirmation_reminder": 6},
+            AVAILABLE,
+            False,
+            "send_confirmation_reminder was done 6h ago; escalate in 18h",
+        ),
+        ({"send_confirmation_reminder": 24}, AVAILABLE, True, None),
+        ({}, AVAILABLE - {"send_confirmation_reminder"}, True, None),  # the store can't send reminders
+    ],
+)
+def test_escalation_readiness(
+    done: dict[str, float], available: frozenset[str], ready: bool, waiting: str | None
+) -> None:
+    r = readiness("request_phone_confirmation", "unconfirmed_order", done, available)
+    assert (r.ready, r.waiting_for) == (ready, waiting)
+    assert r.rule == (None if ready else "COD-6")
+
+
+def test_actions_without_a_step_are_always_ready() -> None:
+    assert readiness("send_confirmation_reminder", "unconfirmed_order", {}, AVAILABLE).ready
+    assert readiness("request_phone_confirmation", "refusal_risk", {}, AVAILABLE).ready  # COD-2: call at once
+
+
+def test_score_uses_what_was_done_and_what_the_store_can_do() -> None:
+    done = CaseFacts("unconfirmed_order", D(1000), 0.9, done_hours_ago={"send_confirmation_reminder": 30})
+    assert score("request_phone_confirmation", {}, done).ready
+    no_reminders = CaseFacts("unconfirmed_order", D(1000), 0.9, available=frozenset({"request_phone_confirmation"}))
+    assert score("request_phone_confirmation", {}, no_reminders).ready
+
+
+def test_every_escalation_step_is_a_real_action_for_its_case_type() -> None:
+    for (action, case_type), step in STEPS.items():
+        assert case_type in CATALOGUE[action].case_types
+        assert case_type in CATALOGUE[step.after].case_types
+        assert step.wait_hours > 0

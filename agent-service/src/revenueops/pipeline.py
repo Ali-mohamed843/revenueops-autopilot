@@ -136,16 +136,22 @@ def plan_cases(session: Session, store: StoreAdapter, llm: LLMClient, cases: lis
                 run.stopped = str(e)
                 break
         else:
-            save_plan(case, result)
+            save_plan(case, result, {a.key for a in actions})
             run.planned.append(case.id)
         session.commit()
     return run
 
 
-def save_plan(case: Case, result: AgentResult[Strategy]) -> None:
+def save_plan(case: Case, result: AgentResult[Strategy], available: set[str]) -> None:
     """Score the Strategist's proposals and store them ranked. The scores, not the model, set the tiers."""
     report = (case.investigation or {}).get("report", {})
-    facts = CaseFacts(case.case_type, case.value_at_risk, report.get("confidence"))
+    facts = CaseFacts(
+        case.case_type,
+        case.value_at_risk,
+        report.get("confidence"),
+        done_hours_ago={},  # nothing is executed before Phase 4, so every escalation starts at step one
+        available=frozenset(available),
+    )
     pairs = []
     for proposal in result.output.proposals:
         params = CATALOGUE[proposal.action].check_params(proposal.params, case.value_at_risk)
@@ -173,6 +179,8 @@ def save_plan(case: Case, result: AgentResult[Strategy]) -> None:
                 expected_value=s.expected_value,
                 tier=str(s.tier),
                 tier_reasons=[{"tier": str(r.tier), "text": r.text, "rule": r.rule} for r in s.reasons],
+                ready=s.ready,
+                waiting_for=s.waiting_for,
             )
         )
 
