@@ -100,3 +100,9 @@ def test_database_rejects_two_open_cases_for_one_subject(session: Session) -> No
     )
     with pytest.raises(IntegrityError):
         session.commit()
+
+
+def test_money_is_stored_to_the_cent(session: Session) -> None:
+    sync(session, FakeStore(orders=[order("o1", hours_since_update=30, total="700")]))
+    (case,) = cases(session)
+    assert str(case.value_at_risk) == "700.00"  # same before and after a reload from the database

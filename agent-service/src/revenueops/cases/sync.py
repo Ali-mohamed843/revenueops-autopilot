@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -12,6 +13,7 @@ from revenueops.cases.models import OPEN_STATUSES, Case, CaseEvent, CaseStatus
 from revenueops.detectors import DetectionResult
 
 ACTOR = "detector"
+CENTS = Decimal("0.01")  # the column's scale; rounding here keeps fresh and reloaded cases identical
 
 
 @dataclass
@@ -50,7 +52,7 @@ def sync_cases(session: Session, store: str, result: DetectionResult, now: datet
                 subject_id=cand.subject_id,
                 status=CaseStatus.OPEN,
                 title=cand.title,
-                value_at_risk=cand.value_at_risk,
+                value_at_risk=cand.value_at_risk.quantize(CENTS),
                 currency=cand.currency,
                 priority=cand.priority,
                 signals=cand.signals,
@@ -76,7 +78,7 @@ def sync_cases(session: Session, store: str, result: DetectionResult, now: datet
             case.case_type = cand.case_type
             report.reclassified += 1
         case.title = cand.title
-        case.value_at_risk = cand.value_at_risk
+        case.value_at_risk = cand.value_at_risk.quantize(CENTS)
         case.priority = cand.priority
         case.signals = cand.signals
         case.last_seen_at = now
