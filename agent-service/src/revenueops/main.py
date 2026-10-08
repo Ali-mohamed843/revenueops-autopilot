@@ -1,16 +1,25 @@
+import secrets
 import uuid
+from collections.abc import Iterator
 from datetime import datetime
 from decimal import Decimal
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Response, status
-from pydantic import BaseModel
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Response, status
+from pydantic import BaseModel, Field
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from revenueops import __version__
+from revenueops.adapters.base import StoreAdapter
+from revenueops.adapters.registry import build_adapter
+from revenueops.agents.llm import build_llm
 from revenueops.cases.models import ActionStatus, Case, CaseStatus, CaseType
+from revenueops.config import Settings, get_settings
 from revenueops.db import database_is_up, get_engine, get_session
+from revenueops.executor import engine
+from revenueops.executor.handlers import Writer
+from revenueops.executor.models import Execution, ExecutionStatus, OutboxMessage, OutboxStatus
 
 app = FastAPI(title="RevenueOps Autopilot", version=__version__)
 
@@ -70,10 +79,50 @@ class CaseActionOut(BaseModel):
     status: str
 
 
+class OutboxOut(BaseModel):
+    id: uuid.UUID
+    execution_id: uuid.UUID
+    case_id: uuid.UUID
+    channel: str
+    recipient: str
+    language: str
+    body: str
+    drafted_by: str
+    status: str
+    created_at: datetime
+    cancelled_at: datetime | None
+
+
+class ExecutionOut(BaseModel):
+    id: uuid.UUID
+    case_id: uuid.UUID
+    action_type: str
+    params: dict[str, Any]
+    tier: str
+    status: str
+    reversible: bool
+    policy_refs: list[str]
+    confidence: float | None
+    requested_at: datetime
+    decided_by: str | None
+    decided_at: datetime | None
+    decision_note: str | None
+    finished_at: datetime | None
+    before: dict[str, Any] | None
+    after: dict[str, Any] | None
+    result: dict[str, Any] | None
+    error: str | None
+    rolled_back_by: str | None
+    rolled_back_at: datetime | None
+    rollback_result: dict[str, Any] | None
+    messages: list[OutboxOut]
+
+
 class CaseDetailOut(CaseOut):
     investigation: dict[str, Any] | None
     plan: dict[str, Any] | None
     actions: list[CaseActionOut]  # the current plan, best first
+    executions: list[ExecutionOut]
     events: list[CaseEventOut]
 
 
@@ -112,6 +161,126 @@ def get_case(case_id: uuid.UUID, session: SessionDep) -> CaseDetailOut:
                 for a in case.actions
                 if a.status == ActionStatus.PROPOSED
             ],
+            "executions": [_execution_out(e) for e in engine.executions_of(session, case)],
             "events": [{"type": e.type, "actor": e.actor, "data": e.data, "at": e.at} for e in case.events],
         }
     )
+
+
+# ---------------------------------------------------------------- actions
+
+
+def _outbox_out(m: OutboxMessage) -> OutboxOut:
+    return OutboxOut.model_validate({k: getattr(m, k) for k in OutboxOut.model_fields})
+
+
+def _execution_out(e: Execution) -> ExecutionOut:
+    fields = {k: getattr(e, k) for k in ExecutionOut.model_fields if k != "messages"}
+    return ExecutionOut.model_validate({**fields, "messages": [_outbox_out(m) for m in e.messages]})
+
+
+SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+def require_admin(settings: SettingsDep, x_admin_key: Annotated[str | None, Header()] = None) -> None:
+    expected = settings.admin_api_key
+    if not expected:
+        raise HTTPException(status_code=503, detail="Set ADMIN_API_KEY to enable actions")
+    if not x_admin_key or not secrets.compare_digest(x_admin_key, expected):
+        raise HTTPException(status_code=401, detail="Invalid or missing X-Admin-Key")
+
+
+def get_store() -> Iterator[StoreAdapter]:
+    yield build_adapter(get_settings())
+
+
+def get_writer() -> Writer:
+    return engine.messenger_writer(build_llm(get_settings()))
+
+
+AdminDep = Annotated[None, Depends(require_admin)]
+StoreDep = Annotated[StoreAdapter, Depends(get_store)]
+WriterDep = Annotated[Writer, Depends(get_writer)]
+
+
+class Decision(BaseModel):
+    by: str = Field(min_length=1, max_length=100, description="Who decides, for the audit trail")
+    note: str | None = Field(default=None, max_length=2000)
+
+
+class Completion(BaseModel):
+    by: str = Field(min_length=1, max_length=100)
+    succeeded: bool
+    note: str = Field(min_length=1, max_length=2000, description="What happened, e.g. the call's outcome")
+
+
+class Rollback(BaseModel):
+    by: str = Field(min_length=1, max_length=100)
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+def _refused(e: engine.ExecutorError) -> HTTPException:
+    return HTTPException(status_code=409, detail=str(e))
+
+
+@app.get("/executions")
+def list_executions(
+    session: SessionDep,
+    status_: Annotated[list[ExecutionStatus] | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[ExecutionOut]:
+    """Actions taken or waiting, newest first. `?status=pending_approval` is the approval queue."""
+    query = select(Execution).order_by(Execution.requested_at.desc()).limit(limit)
+    if status_:
+        query = query.where(Execution.status.in_(status_))
+    return [_execution_out(e) for e in session.scalars(query)]
+
+
+@app.get("/outbox")
+def list_outbox(
+    session: SessionDep,
+    status_: Annotated[list[OutboxStatus] | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[OutboxOut]:
+    """Drafted messages, newest first. Nothing is sent in this version."""
+    query = select(OutboxMessage).order_by(OutboxMessage.created_at.desc()).limit(limit)
+    if status_:
+        query = query.where(OutboxMessage.status.in_(status_))
+    return [_outbox_out(m) for m in session.scalars(query)]
+
+
+@app.post("/executions/{execution_id}/approve")
+def approve_execution(
+    execution_id: uuid.UUID, body: Decision, session: SessionDep, store: StoreDep, write: WriterDep, _: AdminDep
+) -> ExecutionOut:
+    try:
+        return _execution_out(engine.approve(session, store, write, execution_id, body.by, body.note))
+    except engine.ExecutorError as e:
+        raise _refused(e) from e
+
+
+@app.post("/executions/{execution_id}/reject")
+def reject_execution(execution_id: uuid.UUID, body: Decision, session: SessionDep, _: AdminDep) -> ExecutionOut:
+    try:
+        return _execution_out(engine.reject(session, execution_id, body.by, body.note))
+    except engine.ExecutorError as e:
+        raise _refused(e) from e
+
+
+@app.post("/executions/{execution_id}/complete")
+def complete_execution(execution_id: uuid.UUID, body: Completion, session: SessionDep, _: AdminDep) -> ExecutionOut:
+    """Report back on an action a person carried out, such as a confirmation call."""
+    try:
+        return _execution_out(engine.complete(session, execution_id, body.by, body.succeeded, body.note))
+    except engine.ExecutorError as e:
+        raise _refused(e) from e
+
+
+@app.post("/executions/{execution_id}/rollback")
+def rollback_execution(
+    execution_id: uuid.UUID, body: Rollback, session: SessionDep, store: StoreDep, _: AdminDep
+) -> ExecutionOut:
+    try:
+        return _execution_out(engine.rollback(session, store, execution_id, body.by, body.reason))
+    except engine.ExecutorError as e:
+        raise _refused(e) from e

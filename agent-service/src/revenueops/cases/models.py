@@ -37,6 +37,8 @@ class CaseStatus(StrEnum):
     INVESTIGATION_FAILED = "investigation_failed"  # retryable
     PLANNED = "planned"  # actions proposed and scored
     PLANNING_FAILED = "planning_failed"  # retryable
+    ACTING = "acting"  # an action waits for approval or for a person to do it
+    ACTED = "acted"  # an action ran; waiting to see if it worked, or for the next escalation step
     CLOSED = "closed"
 
 
@@ -46,6 +48,8 @@ OPEN_STATUSES = (
     CaseStatus.INVESTIGATION_FAILED,
     CaseStatus.PLANNED,
     CaseStatus.PLANNING_FAILED,
+    CaseStatus.ACTING,
+    CaseStatus.ACTED,
 )
 
 

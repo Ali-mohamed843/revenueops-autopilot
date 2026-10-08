@@ -16,7 +16,16 @@ from revenueops.pipeline import cases_to_plan, detect, plan_cases
 from revenueops.policies import policies_for
 from tests.fakes import FakeLLM, FakeStore, order, tool_use
 
-ALL = {"order_confirmations", "delivery_tracking", "cod_risk_scores", "abandoned_carts", "returns"}
+ALL = {
+    "order_confirmations",
+    "delivery_tracking",
+    "cod_risk_scores",
+    "abandoned_carts",
+    "returns",
+    "dispatch_hold",
+    "discount_codes",
+    "return_decisions",
+}
 
 REMINDER = {
     "action": "send_confirmation_reminder",

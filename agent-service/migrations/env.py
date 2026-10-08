@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy import create_engine
 
 import revenueops.cases.models  # noqa: F401  (registers the tables on Base.metadata)
+import revenueops.executor.models  # noqa: F401
 from revenueops.config import get_settings
 from revenueops.db import Base
 

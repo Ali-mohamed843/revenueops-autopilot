@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
-from revenueops.adapters.base import NotFound
+from revenueops.adapters.base import Conflict, NotFound
 from revenueops.agents.llm import LLMResponse, Usage
 from revenueops.commerce.models import (
     Capabilities,
@@ -16,6 +16,8 @@ from revenueops.commerce.models import (
     CartLine,
     Customer,
     CustomerProfile,
+    Discount,
+    DispatchHold,
     LateShipment,
     Order,
     OrderDetail,
@@ -47,7 +49,7 @@ def order(
         status=status,
         total=Decimal(total),
         currency="EGP",
-        customer=Customer(key=customer_key, registered=True, name="Test Buyer"),
+        customer=Customer(key=customer_key, registered=True, name="Test Buyer", phone=customer_key),
         governorate="Cairo",
         payment_method="cash_on_delivery",
         shipment=Shipment(id=f"s-{id}", status=ShipmentStatus.NOT_DISPATCHED, risk_score=risk),
@@ -67,11 +69,19 @@ class FakeStore:
     profiles: dict[str, CustomerProfile] = field(default_factory=dict)
     capabilities: Capabilities = field(
         default_factory=lambda: Capabilities(
-            order_confirmations=True, delivery_tracking=True, cod_risk_scores=True, abandoned_carts=True, returns=True
+            order_confirmations=True,
+            delivery_tracking=True,
+            cod_risk_scores=True,
+            abandoned_carts=True,
+            returns=True,
+            dispatch_hold=True,
+            discount_codes=True,
+            return_decisions=True,
         )
     )
     name: str = "fake"
     notes: list[tuple[str, str, str]] = field(default_factory=list)
+    discounts: dict[str, Discount] = field(default_factory=dict)
     now: datetime = NOW
 
     def list_orders(self, statuses: Sequence[OrderStatus], *, unchanged_for_hours: float | None = None) -> list[Order]:
@@ -101,6 +111,76 @@ class FakeStore:
 
     def add_order_note(self, order_id: str, text: str, author: str) -> None:
         self.notes.append((order_id, text, author))
+
+    # ------------------------------------------------------------- actions
+
+    def _order(self, order_id: str) -> Order:
+        for o in self.orders:
+            if o.id == order_id:
+                return o
+        raise NotFound(order_id)
+
+    def _replace_order(self, order: Order) -> None:
+        self.orders = [order if o.id == order.id else o for o in self.orders]
+
+    def _hold_state(self, order: Order) -> DispatchHold:
+        s = order.shipment
+        assert s is not None
+        return DispatchHold(
+            order_id=order.id,
+            shipment_id=s.id,
+            shipment_status=s.status,
+            held=s.dispatch_hold,
+            reason=s.dispatch_hold_reason,
+            held_at=self.now if s.dispatch_hold else None,
+        )
+
+    def hold_dispatch(self, order_id: str, reason: str) -> DispatchHold:
+        order = self._order(order_id)
+        assert order.shipment is not None
+        if order.shipment.status != ShipmentStatus.NOT_DISPATCHED:
+            raise Conflict(f"Shipment is already {order.shipment.status}")
+        if not order.shipment.dispatch_hold:
+            shipment = order.shipment.model_copy(update={"dispatch_hold": True, "dispatch_hold_reason": reason})
+            order = order.model_copy(update={"shipment": shipment})
+            self._replace_order(order)
+        return self._hold_state(order)
+
+    def release_dispatch_hold(self, order_id: str) -> DispatchHold:
+        order = self._order(order_id)
+        assert order.shipment is not None
+        shipment = order.shipment.model_copy(update={"dispatch_hold": False, "dispatch_hold_reason": None})
+        order = order.model_copy(update={"shipment": shipment})
+        self._replace_order(order)
+        return self._hold_state(order)
+
+    def create_discount(self, percent: int, valid_hours: int, min_order_value: Decimal | None) -> Discount:
+        d = Discount(
+            id=f"d{len(self.discounts) + 1}",
+            code=f"RO-TEST{len(self.discounts) + 1:04d}",
+            percent=percent,
+            min_order_value=min_order_value,
+            valid_until=self.now + timedelta(hours=valid_hours),
+            active=True,
+        )
+        self.discounts[d.id] = d
+        return d
+
+    def void_discount(self, discount_id: str) -> Discount:
+        d = self.discounts[discount_id]
+        if d.uses:
+            raise Conflict("The code was already used")
+        self.discounts[discount_id] = d = d.model_copy(update={"active": False})
+        return d
+
+    def decide_return(self, return_id: str, decision: str, note: str) -> ReturnRequest:
+        for r in self.returns:
+            if r.id == return_id:
+                status = ReturnStatus.APPROVED if decision == "approve" else ReturnStatus.REJECTED
+                updated = r.model_copy(update={"status": status})
+                self.returns = [updated if x.id == return_id else x for x in self.returns]
+                return updated
+        raise NotFound(return_id)
 
 
 def cart(id: str, *, idle_hours: float, value: str = "500", email: str | None = "a@b.test") -> Cart:

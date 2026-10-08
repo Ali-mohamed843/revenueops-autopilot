@@ -30,6 +30,10 @@ class Settings(BaseSettings):
     anthropic_base_url: str = ""
     agent_model: str = "claude-sonnet-5-5"
 
+    # Required by every API call that changes something (approve, reject, complete, roll back).
+    # Unset means those endpoints answer 503 rather than run unprotected.
+    admin_api_key: str = ""
+
     @classmethod
     def settings_customise_sources(
         cls,

@@ -109,6 +109,7 @@ _ACTIONS = (
         kind=Kind.ORDER_CHANGE,
         case_types=("refusal_risk", "unconfirmed_order"),
         reversible=True,
+        needs=("dispatch_hold",),
     ),
     ActionSpec(
         key="request_deposit",
@@ -176,6 +177,7 @@ _ACTIONS = (
         kind=Kind.MONEY,
         case_types=("abandoned_cart", "late_shipment"),
         reversible=True,
+        needs=("discount_codes",),
         params=(
             Param("percent", "int", "Discount percentage", min=1, max=20),
             Param("valid_hours", "int", "How long the code works", min=24, max=168),
@@ -188,7 +190,7 @@ _ACTIONS = (
         kind=Kind.MONEY,
         case_types=("stale_return",),
         reversible=False,
-        needs=("returns",),
+        needs=("returns", "return_decisions"),
         params=(
             Param("decision", "choice", "approve or reject", choices=("approve", "reject")),
             Param(

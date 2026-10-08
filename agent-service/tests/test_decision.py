@@ -13,7 +13,16 @@ from revenueops.decision.score import CaseFacts, Score, Tier, rank, recommended,
 from revenueops.policies import all_policies
 
 D = Decimal
-ALL = {"order_confirmations", "delivery_tracking", "cod_risk_scores", "abandoned_carts", "returns"}
+ALL = {
+    "order_confirmations",
+    "delivery_tracking",
+    "cod_risk_scores",
+    "abandoned_carts",
+    "returns",
+    "dispatch_hold",
+    "discount_codes",
+    "return_decisions",
+}
 
 
 def facts(case_type: str, value: str = "1000", confidence: float | None = 0.9) -> CaseFacts:

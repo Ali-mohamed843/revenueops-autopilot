@@ -62,6 +62,10 @@ class Capabilities:
     abandoned_carts: bool = False
     returns: bool = False
     payment_failures: bool = False  # online payments that can fail and be retried
+    # Actions the service can take in the store
+    dispatch_hold: bool = False  # hold an unshipped order back from dispatch
+    discount_codes: bool = False  # create and void single-use discount codes
+    return_decisions: bool = False  # approve or reject return requests
 
     def has(self, *features: str) -> bool:
         return all(getattr(self, f) for f in features)
@@ -91,6 +95,8 @@ class Shipment(_Model):
     cod_collected: bool = False
     attempt_count: int = 0
     risk_score: int | None = None  # store's own COD risk score (0-100) at shipment creation
+    dispatch_hold: bool = False
+    dispatch_hold_reason: str | None = None
     return_reason: str | None = None
     dispatched_at: datetime | None = None
     delivered_at: datetime | None = None
@@ -226,3 +232,22 @@ class Cart(_Model):
     currency: str = "EGP"
     lines: list[CartLine] = []
     last_activity_at: datetime
+
+
+class DispatchHold(_Model):
+    order_id: str
+    shipment_id: str
+    shipment_status: ShipmentStatus
+    held: bool
+    reason: str | None = None
+    held_at: datetime | None = None
+
+
+class Discount(_Model):
+    id: str
+    code: str
+    percent: int
+    min_order_value: Decimal | None = None
+    valid_until: datetime
+    active: bool
+    uses: int = 0

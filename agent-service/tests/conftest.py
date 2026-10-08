@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 import revenueops.cases.models  # noqa: F401  (registers tables)
+import revenueops.executor.models  # noqa: F401
 from revenueops.db import Base, session_factory
 
 

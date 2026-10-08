@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from revenueops.adapters.base import NotFound, StoreError
+from revenueops.adapters.base import Conflict, NotFound, StoreError
 from revenueops.commerce.models import (
     Capabilities,
     Cart,
@@ -18,6 +18,8 @@ from revenueops.commerce.models import (
     Customer,
     CustomerProfile,
     DeliveryAttempt,
+    Discount,
+    DispatchHold,
     LateShipment,
     Note,
     Order,
@@ -66,6 +68,9 @@ class StoreForgeAdapter:
         abandoned_carts=True,
         returns=True,
         payment_failures=False,  # cash on delivery only
+        dispatch_hold=True,
+        discount_codes=True,
+        return_decisions=True,
     )
 
     def __init__(self, base_url: str, api_key: str, *, transport: httpx.BaseTransport | None = None) -> None:
@@ -91,6 +96,8 @@ class StoreForgeAdapter:
             raise StoreError(f"StoreForge is unreachable: {e}") from e
         if response.status_code == 404:
             raise NotFound(f"StoreForge has no {path}")
+        if response.status_code == 409:
+            raise Conflict(f"StoreForge refused {method} {path}: {_message(response)}")
         if response.status_code >= 400:
             raise StoreError(f"StoreForge {method} {path} failed: HTTP {response.status_code} {response.text[:300]}")
         body: Json = response.json()
@@ -147,6 +154,26 @@ class StoreForgeAdapter:
     def add_order_note(self, order_id: str, text: str, author: str) -> None:
         self._request("POST", f"/orders/{order_id}/notes", json={"content": text, "author": author})
 
+    def hold_dispatch(self, order_id: str, reason: str) -> DispatchHold:
+        return _hold(self._request("POST", f"/orders/{order_id}/dispatch-hold", json={"reason": reason}))
+
+    def release_dispatch_hold(self, order_id: str) -> DispatchHold:
+        return _hold(self._request("DELETE", f"/orders/{order_id}/dispatch-hold"))
+
+    def create_discount(self, percent: int, valid_hours: int, min_order_value: Decimal | None) -> Discount:
+        body: dict[str, Any] = {"percent": percent, "validHours": valid_hours}
+        if min_order_value is not None:
+            body["minOrderValue"] = float(min_order_value)
+        return _discount(self._request("POST", "/discounts", json=body))
+
+    def void_discount(self, discount_id: str) -> Discount:
+        return _discount(self._request("POST", f"/discounts/{discount_id}/void"))
+
+    def decide_return(self, return_id: str, decision: str, note: str) -> ReturnRequest:
+        return _return(
+            self._request("POST", f"/returns/{return_id}/decision", json={"decision": decision, "note": note})
+        )
+
 
 # ------------------------------------------------------------------- mapping
 
@@ -174,6 +201,8 @@ def _shipment(s: Json) -> Shipment:
         cod_collected=bool(s.get("codCollected")),
         attempt_count=s.get("attemptCount", 0),
         risk_score=s.get("riskScoreAtDispatch"),
+        dispatch_hold=bool(s.get("dispatchHold")),
+        dispatch_hold_reason=s.get("dispatchHoldReason"),
         return_reason=s.get("rtoReason"),
         dispatched_at=s.get("dispatchedAt"),
         delivered_at=s.get("deliveredAt"),
@@ -325,3 +354,33 @@ def _cart(c: Json) -> Cart:
         ],
         last_activity_at=c["lastActivityAt"],
     )
+
+
+def _hold(h: Json) -> DispatchHold:
+    return DispatchHold(
+        order_id=h["orderId"],
+        shipment_id=h["shipmentId"],
+        shipment_status=_SHIPMENT_STATUS[h["shipmentStatus"]],
+        held=h["held"],
+        reason=h.get("reason"),
+        held_at=h.get("heldAt"),
+    )
+
+
+def _discount(d: Json) -> Discount:
+    return Discount(
+        id=d["id"],
+        code=d["code"],
+        percent=d["percent"],
+        min_order_value=_money_or_none(d.get("minOrderValue")),
+        valid_until=d["validUntil"],
+        active=d["active"],
+        uses=d.get("uses", 0),
+    )
+
+
+def _message(response: httpx.Response) -> str:
+    try:
+        return str(response.json().get("message", response.text[:300]))
+    except ValueError:
+        return response.text[:300]

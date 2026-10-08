@@ -1,4 +1,4 @@
-"""Command line: `revenueops detect`, `revenueops investigate` and `revenueops plan`."""
+"""Command line: detect, investigate, plan, act, then queue / approve / reject / complete / rollback."""
 
 from __future__ import annotations
 
@@ -17,6 +17,8 @@ from revenueops.agents.llm import build_llm
 from revenueops.cases.models import OPEN_STATUSES, Case
 from revenueops.config import get_settings
 from revenueops.db import get_engine, session_factory
+from revenueops.executor import engine
+from revenueops.executor.models import OPEN_EXECUTION, Execution
 from revenueops.pipeline import cases_to_investigate, cases_to_plan, detect, investigate_cases, plan_cases
 
 
@@ -86,6 +88,72 @@ def cmd_plan(limit: int, case_id: str | None) -> int:
     return 1 if run.failed and not run.planned else 0
 
 
+def cmd_act(limit: int, case_id: str | None) -> int:
+    settings = get_settings()
+    store = build_adapter(settings)
+    write = engine.messenger_writer(build_llm(settings))
+    with session_factory(get_engine())() as session:
+        cases = [_get_case(session, case_id)] if case_id else engine.cases_to_act(session, store.name, limit)
+        if not cases:
+            print("No planned cases. Run `revenueops plan` first.")
+            return 0
+        run = engine.act(session, store, write, cases)
+        for ex_id in run.ran + run.queued + run.failed:
+            ex = session.get(Execution, ex_id)
+            assert ex is not None
+            print(f"  {ex.status:<17} {ex.action_type:<28} {ex.tier:<11} case {ex.case_id}  execution {ex.id}")
+            if ex.error:
+                print(f"      error: {ex.error}")
+            for m in ex.messages:
+                print(f"      outbox -> {m.channel} {m.recipient}: {m.body}")
+        counts = f"Ran {len(run.ran)}, queued {len(run.queued)}, failed {len(run.failed)}"
+        print(f"{counts}; {len(run.waiting)} case(s) waiting for their next step")
+    return 1 if run.failed and not (run.ran or run.queued) else 0
+
+
+def cmd_queue() -> int:
+    with session_factory(get_engine())() as session:
+        waiting = list(
+            session.scalars(
+                select(Execution).where(Execution.status.in_(OPEN_EXECUTION)).order_by(Execution.requested_at)
+            )
+        )
+        if not waiting:
+            print("Nothing is waiting for a person.")
+        for ex in waiting:
+            case = ex.case
+            print(
+                f"{ex.id}  {ex.status:<17} {ex.action_type:<28} {case.case_type} {case.value_at_risk} {case.currency}"
+            )
+            print(f"    {ex.action.rationale}")
+    return 0
+
+
+def cmd_decide(command: str, execution_id: str, by: str, note: str | None, failed: bool) -> int:
+    settings = get_settings()
+    with session_factory(get_engine())() as session:
+        ex_id = uuid.UUID(execution_id)
+        try:
+            if command == "approve":
+                store = build_adapter(settings)
+                ex = engine.approve(session, store, engine.messenger_writer(build_llm(settings)), ex_id, by, note)
+            elif command == "reject":
+                ex = engine.reject(session, ex_id, by, note)
+            elif command == "complete":
+                ex = engine.complete(session, ex_id, by, not failed, note or "")
+            else:
+                ex = engine.rollback(session, build_adapter(settings), ex_id, by, note or "")
+        except engine.ExecutorError as e:
+            print(f"refused: {e}", file=sys.stderr)
+            return 1
+        print(f"{ex.action_type}: {ex.status}")
+        if ex.error:
+            print(f"  error: {ex.error}")
+        for m in ex.messages:
+            print(f"  outbox ({m.status}) -> {m.channel} {m.recipient}: {m.body}")
+    return 0
+
+
 def _get_case(session: Session, case_id: str) -> Case:
     case = session.get(Case, uuid.UUID(case_id))
     if case is None:
@@ -101,6 +169,10 @@ def _print_stopped(reason: str | None) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Messages are Arabic; a Windows console or a pipe may default to a code page that can't print them.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(prog="revenueops")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("detect", help="Scan the store and open, update or close cases")
@@ -110,6 +182,22 @@ def main(argv: list[str] | None = None) -> int:
     pln = sub.add_parser("plan", help="Run the Strategist on investigated cases and score its proposals")
     pln.add_argument("--limit", type=int, default=3, help="How many cases (most urgent first)")
     pln.add_argument("--case", dest="case_id", help="Plan one case by id")
+    act = sub.add_parser("act", help="Run each planned case's next action, or queue it for a person")
+    act.add_argument("--limit", type=int, default=10, help="How many cases (most urgent first)")
+    act.add_argument("--case", dest="case_id", help="Act on one case by id")
+    sub.add_parser("queue", help="List actions waiting for approval or for a person")
+    for name, help_ in (
+        ("approve", "Approve a waiting action and run it"),
+        ("reject", "Reject a waiting action"),
+        ("complete", "Report back on an action a person carried out"),
+        ("rollback", "Undo an action"),
+    ):
+        cmd = sub.add_parser(name, help=help_)
+        cmd.add_argument("execution_id")
+        cmd.add_argument("--by", required=True, help="Your name, for the audit trail")
+        cmd.add_argument("--note", required=name in ("complete", "rollback"), help="Why, or what happened")
+        if name == "complete":
+            cmd.add_argument("--failed", action="store_true", help="The action didn't work")
     args = parser.parse_args(argv)
 
     # Setup and connectivity problems get one readable line, not a traceback.
@@ -118,6 +206,12 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_detect()
         if args.command == "plan":
             return cmd_plan(args.limit, args.case_id)
+        if args.command == "act":
+            return cmd_act(args.limit, args.case_id)
+        if args.command == "queue":
+            return cmd_queue()
+        if args.command in ("approve", "reject", "complete", "rollback"):
+            return cmd_decide(args.command, args.execution_id, args.by, args.note, getattr(args, "failed", False))
         return cmd_investigate(args.limit, args.case_id)
     except ValueError as e:  # missing or invalid configuration
         print(f"error: {e}", file=sys.stderr)

@@ -10,10 +10,10 @@ and carts that are abandoned. The first store is
 [StoreForge](https://github.com/Ali-mohamed843/ecommerce-saas); the design is
 platform-agnostic, with one adapter per store.
 
-> Status: Phase 3 — the service detects revenue-at-risk cases in a live store,
-> an Investigator agent explains each one, a Strategist agent proposes actions,
-> and a deterministic engine scores them and decides who may carry them out.
-> Execution, approvals and rollback come next.
+> Status: Phase 4 — the service detects revenue-at-risk cases in a live store,
+> investigates and plans them with agents, and carries the actions out: `auto`
+> actions run on their own, the rest wait for a person, every step is audited
+> and undoable actions can be rolled back. A dashboard comes next.
 
 ## How it fits together
 
@@ -27,6 +27,9 @@ StoreForge integration API ──HTTP──▶ adapters/storeforge ──▶ gen
                          Strategist agent (LLM, fixed action catalogue, policies) ──▶ proposals
                                                                    │
                          decision engine (plain code) ──▶ expected value + tier per action
+                                                                   │
+                         executor ──▶ auto: run now │ approval: queue │ human_only: a person does it
+                                   └─▶ store actions, outbox (Messenger agent), audit, rollback
 ```
 
 The design rule: the language model investigates and proposes; deterministic
@@ -82,6 +85,32 @@ back to it. Then plain code takes over (`decision/score.py`):
 The decision engine imports nothing from the model, database or store
 (`lint-imports` enforces it), and CI requires 100% branch coverage for it.
 
+### How actions are carried out
+
+`revenueops act` takes each planned case's next ready action and scores it
+again at that moment:
+
+- **auto** runs at once: a message goes to the outbox, or the store changes
+  (dispatch hold, discount code).
+- **approval** waits in the queue until someone approves it. Approval scores it
+  again and refuses anything that now needs a person, or whose case closed in
+  the meantime.
+- **human_only** (a phone call, a cancellation) is never done by the service; a
+  person does it and reports back with `complete`.
+
+Each proposed action runs at most once (a unique key in the database). Every
+execution keeps before/after snapshots, who decided and when, and its result;
+every step is also an event on the case and a note in the store's admin panel.
+Rollback reverses the store side (releases the hold, voids an unused code) and
+cancels unsent messages; return decisions and anything a person did can't be
+undone.
+
+Customer messages are drafted by the **Messenger** agent in Egyptian Arabic.
+Code chooses the recipient from the store's records and checks the phone
+number; the draft must contain its facts (order reference, discount code) and
+may not mention risk or refusals (COMM-5). In this version messages stop in the
+outbox — nothing is actually sent.
+
 Policy retrieval is just "every policy tagged with this case type". With five
 short documents that is exact and complete; a vector store would only add a way
 to miss a rule.
@@ -89,7 +118,8 @@ to miss a rule.
 ## Run it locally
 
 Requirements: [uv](https://docs.astral.sh/uv/), Docker, and StoreForge running
-with `INTEGRATION_API_KEY` set in its `.env`.
+with `INTEGRATION_API_KEY` set in its `.env` and its migrations applied
+(`npm run migration:run`; Phase 4 adds the dispatch hold).
 
 ```bash
 docker compose up -d postgres
@@ -100,6 +130,8 @@ uv run alembic upgrade head
 uv run revenueops detect
 uv run revenueops investigate --limit 3
 uv run revenueops plan --limit 3
+uv run revenueops act
+uv run revenueops queue
 uv run uvicorn revenueops.main:app --reload --port 8000
 ```
 
@@ -108,6 +140,12 @@ uv run uvicorn revenueops.main:app --reload --port 8000
   (`--case <id>` for one).
 - `revenueops plan` runs the Strategist on investigated cases and scores its
   proposals.
+- `revenueops act` runs or queues each planned case's next action;
+  `revenueops queue` lists what waits for a person; `approve`, `reject`,
+  `complete` and `rollback` take an execution id and `--by <your name>`.
+- The API adds `GET /executions`, `GET /outbox`, and
+  `POST /executions/{id}/approve|reject|complete|rollback` (header
+  `X-Admin-Key: $ADMIN_API_KEY`).
 - The API serves `GET /health`, `GET /cases` and `GET /cases/{id}`; docs at
   http://localhost:8000/docs.
 
@@ -152,6 +190,7 @@ agent-service/
     cases/          case and audit-event tables, idempotent sync
     agents/         LLM clients, tool loop, Investigator, Strategist
     decision/       action catalogue, starting priors, scorer (pure code)
+    executor/       handlers per action, the executor, executions and outbox tables
     policies/       the store's rules as markdown
     pipeline.py     detect, then investigate
     cli.py, main.py command line and HTTP API
