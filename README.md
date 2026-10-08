@@ -10,9 +10,10 @@ and carts that are abandoned. The first store is
 [StoreForge](https://github.com/Ali-mohamed843/ecommerce-saas); the design is
 platform-agnostic, with one adapter per store.
 
-> Status: Phase 2 — the service detects revenue-at-risk cases in a live store
-> and an Investigator agent explains each one. Action proposals, approvals and
-> execution come next.
+> Status: Phase 3 — the service detects revenue-at-risk cases in a live store,
+> an Investigator agent explains each one, a Strategist agent proposes actions,
+> and a deterministic engine scores them and decides who may carry them out.
+> Execution, approvals and rollback come next.
 
 ## How it fits together
 
@@ -22,6 +23,10 @@ StoreForge integration API ──HTTP──▶ adapters/storeforge ──▶ gen
                          detectors (plain rules) ──▶ cases (Postgres, audit trail)
                                                                    │
                          Investigator agent (LLM + read-only tools) ──▶ report on the case
+                                                                   │
+                         Strategist agent (LLM, fixed action catalogue, policies) ──▶ proposals
+                                                                   │
+                         decision engine (plain code) ──▶ expected value + tier per action
 ```
 
 The design rule: the language model investigates and proposes; deterministic
@@ -49,6 +54,30 @@ A subject (order, cart, return) has at most one open case; the most urgent rule
 wins. Re-running detection updates cases and closes those whose condition
 cleared.
 
+### How actions are decided
+
+The Strategist picks 1–4 actions from a fixed catalogue (`decision/catalogue.py`)
+and cites the policy rules it relied on (`policies/*.md`). Proposals naming an
+unknown action, a parameter out of range or a rule that doesn't exist are sent
+back to it. Then plain code takes over (`decision/score.py`):
+
+- **Expected value** = (P(recovered with the action) − P(recovered without)) ×
+  value at risk − expected cost. The probabilities are hand-set starting
+  assumptions in `decision/priors.py`; Phase 6 replaces them with measured rates.
+  The model never sets them.
+- **Tier:** `auto` (harmless if wrong, or undoable, and within every limit),
+  `approval`, or `human_only`. The most important policy limits are written in
+  code as well — refunds over 300 EGP always need a person, discounts above 10%
+  or 500 EGP need approval — so no prompt or policy edit can loosen them. Every
+  tier comes with its reasons and the rule each one enforces.
+
+The decision engine imports nothing from the model, database or store
+(`lint-imports` enforces it), and CI requires 100% branch coverage for it.
+
+Policy retrieval is just "every policy tagged with this case type". With five
+short documents that is exact and complete; a vector store would only add a way
+to miss a rule.
+
 ## Run it locally
 
 Requirements: [uv](https://docs.astral.sh/uv/), Docker, and StoreForge running
@@ -62,12 +91,15 @@ uv sync
 uv run alembic upgrade head
 uv run revenueops detect
 uv run revenueops investigate --limit 3
+uv run revenueops plan --limit 3
 uv run uvicorn revenueops.main:app --reload --port 8000
 ```
 
 - `revenueops detect` scans the store and opens, updates or closes cases.
 - `revenueops investigate` runs the Investigator on the most urgent open cases
   (`--case <id>` for one).
+- `revenueops plan` runs the Strategist on investigated cases and scores its
+  proposals.
 - The API serves `GET /health`, `GET /cases` and `GET /cases/{id}`; docs at
   http://localhost:8000/docs.
 
@@ -110,7 +142,9 @@ agent-service/
     adapters/       base.py (the contract), registry.py, storeforge/
     detectors/      the case rules
     cases/          case and audit-event tables, idempotent sync
-    agents/         LLM client, tool loop, Investigator
+    agents/         LLM clients, tool loop, Investigator, Strategist
+    decision/       action catalogue, starting priors, scorer (pure code)
+    policies/       the store's rules as markdown
     pipeline.py     detect, then investigate
     cli.py, main.py command line and HTTP API
   migrations/       Alembic

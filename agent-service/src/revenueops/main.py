@@ -9,7 +9,7 @@ from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
 from revenueops import __version__
-from revenueops.cases.models import Case, CaseStatus, CaseType
+from revenueops.cases.models import ActionStatus, Case, CaseStatus, CaseType
 from revenueops.db import database_is_up, get_engine, get_session
 
 app = FastAPI(title="RevenueOps Autopilot", version=__version__)
@@ -51,8 +51,27 @@ class CaseEventOut(BaseModel):
     at: datetime
 
 
+class CaseActionOut(BaseModel):
+    id: uuid.UUID
+    rank: int
+    recommended: bool
+    action_type: str
+    params: dict[str, Any]
+    rationale: str
+    policy_refs: list[str]
+    p_with: float
+    p_without: float
+    cost: Decimal
+    expected_value: Decimal
+    tier: str
+    tier_reasons: list[dict[str, Any]]
+    status: str
+
+
 class CaseDetailOut(CaseOut):
     investigation: dict[str, Any] | None
+    plan: dict[str, Any] | None
+    actions: list[CaseActionOut]  # the current plan, best first
     events: list[CaseEventOut]
 
 
@@ -85,6 +104,12 @@ def get_case(case_id: uuid.UUID, session: SessionDep) -> CaseDetailOut:
         {
             **_case_out(case),
             "investigation": case.investigation,
+            "plan": case.plan,
+            "actions": [
+                {k: getattr(a, k) for k in CaseActionOut.model_fields}
+                for a in case.actions
+                if a.status == ActionStatus.PROPOSED
+            ],
             "events": [{"type": e.type, "actor": e.actor, "data": e.data, "at": e.at} for e in case.events],
         }
     )

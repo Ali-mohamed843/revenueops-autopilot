@@ -70,6 +70,7 @@ Rules:
 - Every evidence item must state a fact you saw, and name the source it came from.
 - Money is in EGP. Quote amounts, dates, counts and risk scores exactly as the tools return them.
 - Risk scores are 0-100; higher means more likely to be refused or fail delivery.
+- A COD order that was never dispatched has cost no shipping yet; do not count shipping as a loss for it.
 - If something you need is not available, list it under missing_information instead of assuming.
 - Finish by calling submit_investigation exactly once.
 """

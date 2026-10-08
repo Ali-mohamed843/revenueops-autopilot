@@ -6,7 +6,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String, Uuid, text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, Numeric, String, Uuid, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from revenueops.db import Base
@@ -35,10 +35,18 @@ class CaseStatus(StrEnum):
     OPEN = "open"  # detected, not investigated yet
     INVESTIGATED = "investigated"
     INVESTIGATION_FAILED = "investigation_failed"  # retryable
+    PLANNED = "planned"  # actions proposed and scored
+    PLANNING_FAILED = "planning_failed"  # retryable
     CLOSED = "closed"
 
 
-OPEN_STATUSES = (CaseStatus.OPEN, CaseStatus.INVESTIGATED, CaseStatus.INVESTIGATION_FAILED)
+OPEN_STATUSES = (
+    CaseStatus.OPEN,
+    CaseStatus.INVESTIGATED,
+    CaseStatus.INVESTIGATION_FAILED,
+    CaseStatus.PLANNED,
+    CaseStatus.PLANNING_FAILED,
+)
 
 
 class Case(Base):
@@ -56,6 +64,7 @@ class Case(Base):
     priority: Mapped[int]
     signals: Mapped[dict[str, Any]] = mapped_column(JSON)  # what the detector saw
     investigation: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    plan: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)  # the Strategist's run
     detected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -64,6 +73,9 @@ class Case(Base):
 
     events: Mapped[list[CaseEvent]] = relationship(
         back_populates="case", order_by="CaseEvent.at", cascade="all, delete-orphan"
+    )
+    actions: Mapped[list[CaseAction]] = relationship(
+        back_populates="case", order_by="CaseAction.rank", cascade="all, delete-orphan"
     )
 
     __table_args__ = (
@@ -94,3 +106,33 @@ class CaseEvent(Base):
     at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     case: Mapped[Case] = relationship(back_populates="events")
+
+
+class ActionStatus(StrEnum):
+    PROPOSED = "proposed"
+    SUPERSEDED = "superseded"  # replaced by a newer plan
+
+
+class CaseAction(Base):
+    """One proposed action for a case, with the score and tier the decision engine gave it."""
+
+    __tablename__ = "case_actions"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    case_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("cases.id", ondelete="CASCADE"), index=True)
+    rank: Mapped[int] = mapped_column(Integer)  # 1 = best
+    recommended: Mapped[bool] = mapped_column(Boolean, default=False)
+    action_type: Mapped[str] = mapped_column(String(50))
+    params: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    rationale: Mapped[str] = mapped_column(String(1000))
+    policy_refs: Mapped[list[str]] = mapped_column(JSON, default=list)
+    p_with: Mapped[float] = mapped_column(Float)
+    p_without: Mapped[float] = mapped_column(Float)
+    cost: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    expected_value: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    tier: Mapped[str] = mapped_column(String(20))  # auto | approval | human_only
+    tier_reasons: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(20), default=ActionStatus.PROPOSED)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+    case: Mapped[Case] = relationship(back_populates="actions")

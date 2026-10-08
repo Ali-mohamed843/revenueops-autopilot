@@ -19,3 +19,5 @@ dist/
 # Node (dashboard, later)
 node_modules/
 .next/
+.coverage
+htmlcov/

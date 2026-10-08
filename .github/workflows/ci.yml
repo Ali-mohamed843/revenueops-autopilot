@@ -23,3 +23,5 @@ jobs:
       - run: uv run mypy
       - run: uv run lint-imports # only adapters/ may know about a specific store
       - run: uv run pytest -v
+      # The decision engine decides what may run without a human: every branch must be tested.
+      - run: uv run pytest -q tests/test_decision.py tests/test_policies.py --cov=revenueops.decision --cov=revenueops.policies --cov-branch --cov-fail-under=100
