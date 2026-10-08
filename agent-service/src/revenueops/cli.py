@@ -7,13 +7,12 @@ import sys
 import uuid
 from collections import Counter
 
-import anthropic
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from revenueops.adapters.base import StoreError
 from revenueops.adapters.registry import build_adapter
-from revenueops.agents.llm import AnthropicLLM
+from revenueops.agents.llm import build_llm
 from revenueops.cases.models import OPEN_STATUSES, Case
 from revenueops.config import get_settings
 from revenueops.db import get_engine, session_factory
@@ -40,7 +39,7 @@ def cmd_detect() -> int:
 def cmd_investigate(limit: int, case_id: str | None) -> int:
     settings = get_settings()
     store = build_adapter(settings)
-    llm = AnthropicLLM.from_settings(settings)
+    llm = build_llm(settings)
     with session_factory(get_engine())() as session:
         if case_id:
             case = session.get(Case, uuid.UUID(case_id))
@@ -52,13 +51,20 @@ def cmd_investigate(limit: int, case_id: str | None) -> int:
             cases = cases_to_investigate(session, store.name, limit)
         print(f"Investigating {len(cases)} case(s) with {llm.model}")
         run = investigate_cases(session, store, llm, cases)
+        done = set(run.investigated) | set(run.failed)
         for case in cases:
+            if case.id not in done:
+                continue
             if case.id in run.failed:
                 print(f"  FAILED {case.case_type} {case.subject_id}: {run.failed[case.id]}")
             else:
                 report = (case.investigation or {}).get("report", {})
                 print(f"  {case.case_type} {case.subject_id} ({case.value_at_risk} {case.currency})")
                 print(f"    {report.get('summary', '')}")
+        if run.stopped:
+            print(f"Stopped early: {run.stopped}")
+            print("  Failed and unstarted cases are retried next run. Wait a few minutes, or set AGENT_MODEL")
+            print("  to another model (paid models are rarely rate-limited).")
     return 1 if run.failed and not run.investigated else 0
 
 
@@ -85,8 +91,6 @@ def main(argv: list[str] | None = None) -> int:
             f"error: cannot reach the database: {e.orig}\n  Is Postgres running (docker compose up -d postgres)?",
             file=sys.stderr,
         )
-    except anthropic.APIError as e:
-        print(f"error: the model API failed: {e}\n  Check ANTHROPIC_* and AGENT_MODEL in .env.", file=sys.stderr)
     return 2
 
 

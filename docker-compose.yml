@@ -3,6 +3,7 @@
 services:
   postgres:
     image: postgres:16.4-alpine
+    restart: unless-stopped # come back on its own after Docker Desktop restarts
     environment:
       # Local development credentials only
       POSTGRES_USER: revenueops

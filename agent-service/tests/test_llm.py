@@ -1,9 +1,10 @@
 from pathlib import Path
 
 import anthropic
+import httpx2
 import pytest
 
-from revenueops.agents.llm import CLAUDE_MAX_TOKENS, OTHER_MODEL_MAX_TOKENS, AnthropicLLM
+from revenueops.agents.llm import CLAUDE_MAX_TOKENS, OTHER_MODEL_MAX_TOKENS, AnthropicLLM, RateLimited
 from revenueops.config import Settings
 
 
@@ -50,3 +51,23 @@ def test_dotenv_wins_over_the_shell(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     env = tmp_path / ".env"
     env.write_text("ANTHROPIC_BASE_URL=https://openrouter.ai/api\n")
     assert Settings(_env_file=env).anthropic_base_url == "https://openrouter.ai/api"  # type: ignore[call-arg]
+
+
+def test_openrouter_rate_limit_becomes_rate_limited_with_the_providers_reason() -> None:
+    body = {
+        "type": "error",
+        "error": {"type": "rate_limit_error", "message": "Provider returned error"},
+        "metadata": {"raw": "some/model:free is temporarily rate-limited upstream."},  # OpenRouter's real shape
+    }
+
+    def limited(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(429, json=body)
+
+    client = anthropic.Anthropic(
+        api_key="test",
+        base_url="https://openrouter.test/api",
+        max_retries=0,
+        http_client=httpx2.Client(transport=httpx2.MockTransport(limited)),
+    )
+    with pytest.raises(RateLimited, match="HTTP 429: some/model:free is temporarily rate-limited upstream"):
+        AnthropicLLM(client, "some/model:free").create(system="s", messages=[], tools=[])

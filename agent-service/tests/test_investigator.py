@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from revenueops.agents.investigator import InvestigationReport, investigate
+from revenueops.agents.llm import LLMResponse, RateLimited
 from revenueops.agents.loop import AgentFailed
 from revenueops.cases.models import Case, CaseStatus
 from revenueops.commerce.models import CustomerProfile
@@ -147,3 +148,31 @@ def test_queue_is_most_urgent_then_most_valuable(session: Session) -> None:
     queue = cases_to_investigate(session, store.name, 10)
     assert [c.subject_id for c in queue] == ["risky", "big", "small"]
     assert queue[1].value_at_risk == Decimal("5000.00")
+
+
+def test_rate_limit_stops_the_batch_and_keeps_earlier_work(session: Session) -> None:
+    store = FakeStore(orders=[order("a", risk=90), order("b", risk=80), order("c", risk=70)])
+    detect(session, store)
+    queue = cases_to_investigate(session, store.name, 10)
+
+    class LimitedAfterOne(FakeLLM):
+        def create(self, **kwargs: Any) -> LLMResponse:
+            if len(self.requests) >= 3:  # the first case takes 3 calls
+                raise RateLimited("fake-model is rate-limited: HTTP 429: try later")
+            return super().create(**kwargs)
+
+    llm = LimitedAfterOne(
+        [
+            [tool_use("get_order", {"order_id": "a"})],
+            [tool_use("get_customer_profile", {"customer_key": "01099000001"})],
+            [tool_use("submit_investigation", {**REPORT, "evidence": REPORT["evidence"][:1]})],
+        ]
+    )
+    run = investigate_cases(session, store, llm, queue)
+
+    assert run.investigated == [queue[0].id]
+    assert list(run.failed) == [queue[1].id]
+    assert run.stopped is not None and "rate-limited" in run.stopped
+    assert [c.status for c in queue] == [CaseStatus.INVESTIGATED, CaseStatus.INVESTIGATION_FAILED, CaseStatus.OPEN]
+    # Both unfinished cases are picked up again next run.
+    assert [c.subject_id for c in cases_to_investigate(session, store.name, 10)] == ["b", "c"]

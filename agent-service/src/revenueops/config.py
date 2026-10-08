@@ -16,9 +16,15 @@ class Settings(BaseSettings):
     storeforge_api_url: str = "http://localhost:3000/api"
     storeforge_api_key: str = ""
 
-    # The model. Same variables as claude-agent-cli:
-    #   Claude directly:  ANTHROPIC_API_KEY
-    #   OpenRouter:       ANTHROPIC_BASE_URL=https://openrouter.ai/api + ANTHROPIC_AUTH_TOKEN
+    # The model. LLM_PROVIDER picks the API format:
+    #   anthropic (default; same variables as claude-agent-cli)
+    #     Claude directly:  ANTHROPIC_API_KEY
+    #     OpenRouter:       ANTHROPIC_BASE_URL=https://openrouter.ai/api + ANTHROPIC_AUTH_TOKEN
+    #   openai: any OpenAI-compatible endpoint, e.g. CodeCraft
+    #     OPENAI_BASE_URL=https://codecraftapi.com/v1 + OPENAI_API_KEY
+    llm_provider: str = "anthropic"
+    openai_base_url: str = ""
+    openai_api_key: str = ""
     anthropic_api_key: str = ""
     anthropic_auth_token: str = ""
     anthropic_base_url: str = ""

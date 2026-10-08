@@ -78,6 +78,10 @@ set `ANTHROPIC_API_KEY` for Claude, or `ANTHROPIC_BASE_URL=https://openrouter.ai
 plus `ANTHROPIC_AUTH_TOKEN` for OpenRouter, and `AGENT_MODEL`. Claude models get
 adaptive thinking; other models get only the core Messages API fields.
 
+For an OpenAI-compatible API instead (for example CodeCraft), set
+`LLM_PROVIDER=openai`, `OPENAI_BASE_URL` and `OPENAI_API_KEY`; the service
+translates its tool calls to the chat-completions format.
+
 Demo data lives on the StoreForge side: `npm run seed:demo` there creates about
 1,700 COD orders with realistic delivery histories and open cases.
 

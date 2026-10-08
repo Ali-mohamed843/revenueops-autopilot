@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from revenueops.adapters.base import StoreAdapter
 from revenueops.agents.investigator import investigate
-from revenueops.agents.llm import LLMClient
+from revenueops.agents.llm import LLMClient, LLMError, RateLimited
 from revenueops.agents.loop import AgentFailed
 from revenueops.cases.models import Case, CaseEvent, CaseStatus
 from revenueops.cases.sync import SyncReport, sync_cases
@@ -34,6 +34,7 @@ def detect(session: Session, store: StoreAdapter, thresholds: Thresholds | None 
 class InvestigateRun:
     investigated: list[uuid.UUID] = field(default_factory=list)
     failed: dict[uuid.UUID, str] = field(default_factory=dict)
+    stopped: str | None = None  # why the run ended before reaching every case
 
 
 def cases_to_investigate(session: Session, store: str, limit: int) -> list[Case]:
@@ -56,12 +57,16 @@ def investigate_cases(session: Session, store: StoreAdapter, llm: LLMClient, cas
     for case in cases:
         try:
             result = investigate(case, store, llm)
-        except AgentFailed as e:
+        except (AgentFailed, LLMError) as e:
             case.status = CaseStatus.INVESTIGATION_FAILED
             case.events.append(
                 CaseEvent(type="investigation_failed", actor="investigator", data={"error": str(e), "model": llm.model})
             )
             run.failed[case.id] = str(e)
+            if isinstance(e, RateLimited):
+                session.commit()
+                run.stopped = str(e)  # the next case would hit the same limit
+                break
         else:
             meta = {
                 "model": result.model,
