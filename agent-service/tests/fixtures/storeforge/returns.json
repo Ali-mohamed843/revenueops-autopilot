@@ -1,0 +1,40 @@
+{
+  "items": [
+    {
+      "id": "a6aa2c5a-4f63-49e9-9c14-e6383e890bfe",
+      "orderId": "0bab63fd-0bb3-4b01-a803-5433b2b3f3c2",
+      "orderItemId": "7ac9a109-bb89-40b5-8116-39b61095b7c0",
+      "productName": "Modern Sectional Sofa",
+      "quantity": 1,
+      "reason": "no_longer_needed",
+      "comment": null,
+      "status": "requested",
+      "refundAmount": null,
+      "itemValue": 15999,
+      "resolutionNote": null,
+      "createdAt": "2026-09-19T07:29:56.104Z",
+      "updatedAt": "2026-09-19T07:29:56.104Z",
+      "ageHours": 462.2
+    },
+    {
+      "id": "88c8b4ad-1d89-4482-8e36-39ce61844687",
+      "orderId": "15ec1e8e-d1ce-4860-86bf-9d44aeb6f2b2",
+      "orderItemId": "2a2a66b1-0c82-4b78-997e-7ef12ae08d07",
+      "productName": "Vitamin C Serum 30ml",
+      "quantity": 2,
+      "reason": "no_longer_needed",
+      "comment": null,
+      "status": "requested",
+      "refundAmount": null,
+      "itemValue": 798,
+      "resolutionNote": null,
+      "createdAt": "2026-08-31T03:35:55.565Z",
+      "updatedAt": "2026-08-31T03:35:55.565Z",
+      "ageHours": 922.1
+    }
+  ],
+  "total": 2,
+  "page": 1,
+  "limit": 100,
+  "pages": 1
+}

@@ -4,12 +4,18 @@ version = "0.1.0"
 description = "AI agents that find and recover revenue at risk in an e-commerce store"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.20.0",
+    "anthropic>=1.12.1",
     "fastapi>=0.142.4",
+    "httpx>=0.28.1",
     "psycopg[binary]>=3.3.6",
     "pydantic-settings>=2.15.0",
     "sqlalchemy>=2.1.4",
     "uvicorn[standard]>=0.54.0",
 ]
+
+[project.scripts]
+revenueops = "revenueops.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11,<0.12"]
@@ -21,6 +27,7 @@ module-name = "revenueops"
 [dependency-groups]
 dev = [
     "httpx2>=2.13.1",
+    "import-linter>=2.15",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "ruff>=0.16.10",
@@ -39,3 +46,30 @@ files = ["src", "tests"]
 [[tool.mypy.overrides]]
 module = "tests.*"
 disallow_untyped_defs = false
+
+# The platform rule: only adapters/ may know about a specific store.
+[tool.importlinter]
+root_package = "revenueops"
+
+[[tool.importlinter.contracts]]
+name = "The core never imports a specific store adapter"
+type = "forbidden"
+source_modules = [
+    "revenueops.commerce",
+    "revenueops.detectors",
+    "revenueops.cases",
+    "revenueops.agents",
+    "revenueops.pipeline",
+]
+forbidden_modules = ["revenueops.adapters.storeforge"]
+
+[[tool.importlinter.contracts]]
+name = "Adapters don't depend on the core"
+type = "forbidden"
+source_modules = ["revenueops.adapters"]
+forbidden_modules = [
+    "revenueops.detectors",
+    "revenueops.cases",
+    "revenueops.agents",
+    "revenueops.pipeline",
+]

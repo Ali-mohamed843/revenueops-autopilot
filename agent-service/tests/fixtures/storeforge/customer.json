@@ -1,0 +1,28 @@
+{
+  "phoneKey": "01099000149",
+  "userId": "91d118f6-db0c-45c2-97aa-98bf161ed772",
+  "name": "Sara Nasser",
+  "email": "sara.nasser.149@demo.storeforge.test",
+  "reliability": {
+    "riskScore": 67,
+    "totalOrders": 1,
+    "deliveredCount": 0,
+    "refusedCount": 1,
+    "returnedCount": 1,
+    "noAnswerCount": 1,
+    "totalDeliveredValue": 0,
+    "codBlocked": false,
+    "codBlockReason": null,
+    "whitelisted": false,
+    "phoneVerified": false
+  },
+  "orders": {
+    "total": 1,
+    "byStatus": {
+      "cancelled": 1
+    },
+    "deliveredValue": 0,
+    "firstOrderAt": "2026-10-01T06:34:25.343Z",
+    "lastOrderAt": "2026-10-01T06:34:25.343Z"
+  }
+}

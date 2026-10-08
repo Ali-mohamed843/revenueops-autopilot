@@ -21,4 +21,5 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run mypy
+      - run: uv run lint-imports # only adapters/ may know about a specific store
       - run: uv run pytest -v

@@ -1,0 +1,67 @@
+{
+  "items": [
+    {
+      "id": "626207a9-872f-480a-8140-e273402fbdcf",
+      "customer": {
+        "userId": "96c16a1c-61e7-490a-9dfd-682f0dab0010",
+        "name": "Tarek Saeed",
+        "email": "tarek.saeed.170@demo.storeforge.test",
+        "phone": "01099000170"
+      },
+      "value": 798,
+      "itemCount": 2,
+      "items": [
+        {
+          "variantId": "b47895db-d47d-4c0f-8626-b6095ce6e5a3",
+          "productName": "Artisan Coffee Beans 1kg",
+          "sku": "artisan-coffee-beans-1kg-default",
+          "quantity": 2,
+          "priceSnapshot": 399,
+          "currentPrice": 399,
+          "stockQuantity": 40
+        }
+      ],
+      "createdAt": "2026-10-06T16:49:05.118Z",
+      "lastActivityAt": "2026-10-06T16:49:05.118Z",
+      "idleHours": 44.9
+    },
+    {
+      "id": "252c988d-3c7c-4308-8743-ba76f82ce71a",
+      "customer": {
+        "userId": "b3c98494-bb2c-4529-8586-3f0c8c693f4f",
+        "name": "Laila Kamal",
+        "email": "laila.kamal.272@demo.storeforge.test",
+        "phone": "01099000272"
+      },
+      "value": 2697,
+      "itemCount": 3,
+      "items": [
+        {
+          "variantId": "7cc731d0-1b55-42fe-8283-f7c9f05df91d",
+          "productName": "Classic Fit Oxford Shirt",
+          "sku": "classic-fit-oxford-shirt-black-l",
+          "quantity": 1,
+          "priceSnapshot": 899,
+          "currentPrice": 899,
+          "stockQuantity": 30
+        },
+        {
+          "variantId": "8206ffc4-5a98-4517-be4a-c73f928403f0",
+          "productName": "Classic Fit Oxford Shirt",
+          "sku": "classic-fit-oxford-shirt-white-s",
+          "quantity": 2,
+          "priceSnapshot": 899,
+          "currentPrice": 899,
+          "stockQuantity": 67
+        }
+      ],
+      "createdAt": "2026-10-06T11:46:15.707Z",
+      "lastActivityAt": "2026-10-06T11:46:15.707Z",
+      "idleHours": 49.9
+    }
+  ],
+  "total": 2,
+  "page": 1,
+  "limit": 100,
+  "pages": 1
+}
