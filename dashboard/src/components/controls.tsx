@@ -13,6 +13,9 @@ import {
   planCase,
   rejectExecution,
   rollbackExecution,
+  runCalibrate,
+  runDryRun,
+  runOutcomes,
   scanStore,
   setOperator,
   type Result,
@@ -294,6 +297,63 @@ export function UndoControl({ executionId, label = "Undo", hint }: { executionId
         <Button size="sm" disabled={pending} onClick={() => setOpen(false)}>
           Keep it
         </Button>
+      </div>
+      <Feedback result={result} />
+    </div>
+  );
+}
+
+// -------------------------------------------------------------- simulation
+
+export function DryRunButton() {
+  const { pending, result, runAction } = useAction();
+  return (
+    <div className="flex flex-col items-start gap-2">
+      <Button variant="primary" pending={pending} onClick={() => runAction(runDryRun)}>
+        {pending ? "Running…" : "Run a dry run"}
+      </Button>
+      <Feedback result={result} />
+    </div>
+  );
+}
+
+export function OutcomeControls({ hasOutcomes, calibrated }: { hasOutcomes: boolean; calibrated: boolean }) {
+  const [episodes, setEpisodes] = useState(5000);
+  const [seed, setSeed] = useState(7);
+  const { pending, result, runAction } = useAction();
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="w-36">
+          <span className="text-[13px] text-muted">Episodes</span>
+          <input
+            type="number"
+            min={100}
+            max={100000}
+            step={500}
+            value={episodes}
+            onChange={(e) => setEpisodes(Number(e.target.value))}
+            className={cn(fieldClass, "mt-1.5")}
+          />
+        </label>
+        <label className="w-24">
+          <span className="text-[13px] text-muted">Seed</span>
+          <input
+            type="number"
+            min={0}
+            value={seed}
+            onChange={(e) => setSeed(Number(e.target.value))}
+            className={cn(fieldClass, "mt-1.5")}
+          />
+        </label>
+        <Button pending={pending} onClick={() => runAction(() => runOutcomes(episodes, seed))}>
+          Simulate outcomes
+        </Button>
+        {hasOutcomes && !calibrated && (
+          <Button variant="amber" disabled={pending} onClick={() => runAction(runCalibrate)}>
+            Use these rates for scoring
+          </Button>
+        )}
       </div>
       <Feedback result={result} />
     </div>

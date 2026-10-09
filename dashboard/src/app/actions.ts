@@ -99,3 +99,24 @@ export async function actOnCase(id: string): Promise<Result> {
       .join("; ");
   });
 }
+
+export async function runDryRun(): Promise<Result> {
+  return run(async () => {
+    await api.dryRun();
+    return "Dry run finished. Nothing was executed.";
+  });
+}
+
+export async function runOutcomes(episodes: number, seed: number): Promise<Result> {
+  return run(async () => {
+    const r = await api.simulateOutcomes(episodes, seed);
+    return `Simulated ${episodes.toLocaleString("en-US")} outcomes (seed ${r.seed}).`;
+  });
+}
+
+export async function runCalibrate(): Promise<Result> {
+  return run(async () => {
+    const r = await api.calibrate();
+    return `Calibration ${r.id.slice(0, 8)} is now used for scoring.`;
+  });
+}

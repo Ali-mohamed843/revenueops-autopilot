@@ -93,7 +93,12 @@ function Option({
             <span className="absolute inset-y-0 start-0 bg-c6" style={{ width: `${a.p_without * 100}%` }} />
           </span>
           <span>
-            {verb} {percent(a.p_with)} with it, {percent(a.p_without)} without · costs {money(a.cost)}
+            {verb} {percent(a.p_with)} with it, {percent(a.p_without)} without · costs {money(a.cost)} ·{" "}
+            {a.measured ? (
+              <span title="Measured from simulated outcomes. See Simulation.">measured over {a.trials} trials</span>
+            ) : (
+              <span title="A hand-set starting estimate, until there are enough outcomes.">starting estimate</span>
+            )}
           </span>
         </div>
         {!ran && !a.ready && a.waiting_for && <p className="mt-2 text-[12px] text-muted">Next step: {a.waiting_for}</p>}

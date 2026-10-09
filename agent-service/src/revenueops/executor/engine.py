@@ -26,9 +26,11 @@ from revenueops.agents.messenger import MessageBrief, draft_message
 from revenueops.cases.models import ActionStatus, Case, CaseAction, CaseEvent, CaseStatus
 from revenueops.commerce.models import Capabilities
 from revenueops.decision.catalogue import CATALOGUE, actions_for
+from revenueops.decision.rates import RateTable
 from revenueops.decision.score import CaseFacts, Score, Tier, rank, recommended, score
 from revenueops.executor.handlers import HANDLERS, ActionFailed, Ctx, Writer
 from revenueops.executor.models import OPEN_EXECUTION, Execution, ExecutionStatus, OutboxMessage, OutboxStatus
+from revenueops.simulation.outcomes import active_rates
 
 AUTHOR = "RevenueOps Autopilot"
 
@@ -60,7 +62,9 @@ def executions_of(session: Session, case: Case) -> list[Execution]:
 # ------------------------------------------------------------- choosing
 
 
-def _facts(case: Case, executions: list[Execution], has: set[str], now: datetime) -> CaseFacts:
+def _facts(
+    case: Case, executions: list[Execution], has: set[str], now: datetime, rates: RateTable | None = None
+) -> CaseFacts:
     done = {
         e.action_type: (now - _aware(e.finished_at)).total_seconds() / 3600
         for e in executions
@@ -72,6 +76,7 @@ def _facts(case: Case, executions: list[Execution], has: set[str], now: datetime
         confidence=(case.investigation or {}).get("report", {}).get("confidence"),
         done_hours_ago=done,
         available=frozenset(a.key for a in actions_for(case.case_type, has)),
+        rates=rates,
     )
 
 
@@ -85,18 +90,20 @@ def _rescore(action: CaseAction, facts: CaseFacts) -> Score:
 
 
 def next_action(
-    case: Case, executions: list[Execution], has: set[str], now: datetime
+    case: Case, executions: list[Execution], has: set[str], now: datetime, rates: RateTable | None = None
 ) -> tuple[CaseAction, Score] | None:
     """The best proposed action that is ready now and was never tried, scored afresh."""
-    return _pick(case, executions, _facts(case, executions, has, now))
+    return _pick(case, executions, _facts(case, executions, has, now, rates))
 
 
-def peek_next_action(case: Case, executions: list[Execution], now: datetime | None = None) -> CaseAction | None:
+def peek_next_action(
+    case: Case, executions: list[Execution], now: datetime | None = None, rates: RateTable | None = None
+) -> CaseAction | None:
     """What act() would take next, for display: uses the store abilities recorded with the plan."""
     if case.status not in (CaseStatus.PLANNED, CaseStatus.ACTED) or not case.plan:
         return None
     available = case.plan.get("available")
-    facts = _facts(case, executions, set(), now or now_utc())
+    facts = _facts(case, executions, set(), now or now_utc(), rates)
     if available is not None:  # plans made before this field existed fall back to the whole catalogue
         facts = replace(facts, available=frozenset(available))
     else:
@@ -149,11 +156,12 @@ def act(session: Session, store: StoreAdapter, write: Writer, cases: list[Case],
     now = now or now_utc()
     run = ActRun()
     has = capabilities_of(store)
+    rates, _ = active_rates(session)
     for case in cases:
         executions = executions_of(session, case)
         if case.status == CaseStatus.CLOSED or any(e.status in OPEN_EXECUTION for e in executions):
             continue
-        pick = next_action(case, executions, has, now)
+        pick = next_action(case, executions, has, now, rates)
         if pick is None:
             run.waiting.append(case.id)
             continue
@@ -273,7 +281,8 @@ def approve(
         session.commit()
         raise ExecutorError(ex.decision_note)
     # The limits are checked again now: the case may have changed since the action was queued.
-    fresh = _rescore(ex.action, _facts(case, executions_of(session, case), capabilities_of(store), now))
+    rates, _ = active_rates(session)
+    fresh = _rescore(ex.action, _facts(case, executions_of(session, case), capabilities_of(store), now, rates))
     if fresh.tier == Tier.HUMAN_ONLY:
         reasons = "; ".join(r.text for r in fresh.reasons if r.tier == Tier.HUMAN_ONLY)
         raise ExecutorError(f"This now needs a person to do it: {reasons}")

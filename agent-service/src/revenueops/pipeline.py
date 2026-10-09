@@ -20,9 +20,11 @@ from revenueops.cases.models import ActionStatus, Case, CaseAction, CaseEvent, C
 from revenueops.cases.sync import SyncReport, sync_cases
 from revenueops.commerce.models import Capabilities
 from revenueops.decision.catalogue import CATALOGUE, actions_for
+from revenueops.decision.rates import RateTable
 from revenueops.decision.score import CaseFacts, rank, recommended, score
 from revenueops.detectors import DetectionResult, Thresholds, run_detectors
 from revenueops.policies import policies_for
+from revenueops.simulation.outcomes import active_rates
 
 
 @dataclass
@@ -118,6 +120,7 @@ def cases_to_plan(session: Session, store: str, limit: int) -> list[Case]:
 def plan_cases(session: Session, store: StoreAdapter, llm: LLMClient, cases: list[Case]) -> PlanRun:
     run = PlanRun()
     has = {f.name for f in fields(Capabilities) if store.capabilities.has(f.name)}
+    rates, _ = active_rates(session)
     for case in cases:
         actions = actions_for(case.case_type, has)
         policies = policies_for(case.case_type)
@@ -136,13 +139,13 @@ def plan_cases(session: Session, store: StoreAdapter, llm: LLMClient, cases: lis
                 run.stopped = str(e)
                 break
         else:
-            save_plan(case, result, {a.key for a in actions})
+            save_plan(case, result, {a.key for a in actions}, rates)
             run.planned.append(case.id)
         session.commit()
     return run
 
 
-def save_plan(case: Case, result: AgentResult[Strategy], available: set[str]) -> None:
+def save_plan(case: Case, result: AgentResult[Strategy], available: set[str], rates: RateTable | None = None) -> None:
     """Score the Strategist's proposals and store them ranked. The scores, not the model, set the tiers."""
     report = (case.investigation or {}).get("report", {})
     facts = CaseFacts(
@@ -151,6 +154,7 @@ def save_plan(case: Case, result: AgentResult[Strategy], available: set[str]) ->
         report.get("confidence"),
         done_hours_ago={},  # nothing is executed before Phase 4, so every escalation starts at step one
         available=frozenset(available),
+        rates=rates,
     )
     pairs = []
     for proposal in result.output.proposals:
@@ -181,6 +185,8 @@ def save_plan(case: Case, result: AgentResult[Strategy], available: set[str]) ->
                 tier_reasons=[{"tier": str(r.tier), "text": r.text, "rule": r.rule} for r in s.reasons],
                 ready=s.ready,
                 waiting_for=s.waiting_for,
+                measured=s.measured,
+                trials=s.trials,
             )
         )
 
@@ -191,7 +197,12 @@ def save_plan(case: Case, result: AgentResult[Strategy], available: set[str]) ->
         "usage": asdict(result.usage),
     }
     # What the store could do when planned: lets the dashboard show the next step without a store call.
-    case.plan = {"approach": result.output.approach, "available": sorted(available), **meta}
+    case.plan = {
+        "approach": result.output.approach,
+        "available": sorted(available),
+        "rates": rates.source if rates else "starting estimates",
+        **meta,
+    }
     case.status = CaseStatus.PLANNED
     summary = (
         {"action": best.action, "tier": str(best.tier), "expected_value": str(best.expected_value)} if best else None

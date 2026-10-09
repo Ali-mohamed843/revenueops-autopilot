@@ -137,6 +137,8 @@ class CaseAction(Base):
     tier: Mapped[str] = mapped_column(String(20))  # auto | approval | human_only
     tier_reasons: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     ready: Mapped[bool] = mapped_column(Boolean, default=True)  # False: a later escalation step
+    measured: Mapped[bool] = mapped_column(Boolean, default=False)  # chances measured, not assumed
+    trials: Mapped[int] = mapped_column(Integer, default=0)  # trials behind the measured chance
     waiting_for: Mapped[str | None] = mapped_column(String(300), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default=ActionStatus.PROPOSED)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

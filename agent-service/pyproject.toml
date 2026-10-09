@@ -64,6 +64,7 @@ source_modules = [
     "revenueops.decision",
     "revenueops.policies",
     "revenueops.executor",
+    "revenueops.simulation",
     "revenueops.pipeline",
 ]
 forbidden_modules = ["revenueops.adapters.storeforge"]
@@ -77,6 +78,7 @@ forbidden_modules = [
     "revenueops.cases",
     "revenueops.agents",
     "revenueops.executor",
+    "revenueops.simulation",
     "revenueops.pipeline",
 ]
 

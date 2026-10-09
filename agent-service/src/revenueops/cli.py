@@ -20,6 +20,8 @@ from revenueops.db import get_engine, session_factory
 from revenueops.executor import engine
 from revenueops.executor.models import OPEN_EXECUTION, Execution
 from revenueops.pipeline import cases_to_investigate, cases_to_plan, detect, investigate_cases, plan_cases
+from revenueops.simulation import outcomes as sim
+from revenueops.simulation.dry_run import dry_run
 
 
 def cmd_detect() -> int:
@@ -154,6 +156,49 @@ def cmd_decide(command: str, execution_id: str, by: str, note: str | None, faile
     return 0
 
 
+def cmd_simulate(what: str, episodes: int, seed: int) -> int:
+    settings = get_settings()
+    with session_factory(get_engine())() as session:
+        try:
+            if what == "dry-run":
+                rates, _ = sim.active_rates(session)
+                run = dry_run(session, build_adapter(settings), rates, rates.source if rates else None)
+                r = run.report
+                print(
+                    f"Dry run over {r['cases']} cases ({r['value_at_risk']} EGP at risk), using {run.params['rates']}"
+                )
+                print(f"  would run on its own: {r['tiers']['auto']}")
+                print(f"  needs approval:       {r['tiers']['approval']}")
+                print(f"  needs a person:       {r['tiers']['human_only']}")
+                print(f"  already waiting:      {r['tiers']['waiting']}")
+                print(f"  nothing ready:        {r['tiers']['nothing_ready']}")
+                print(f"  expected recovery:    {r['expected_recovery']} EGP")
+                for action, n in r["actions"].items():
+                    print(f"    {n:>4}  {action}")
+                print(f"  high-risk actions: {r['high_risk_total']} (nothing was executed)")
+            elif what == "outcomes":
+                run = sim.simulate_outcomes(session, episodes, seed)
+                r = run.report
+                print(f"Simulated {r['episodes']} outcomes (seed {seed}): {r['recovered']} recovered")
+                print(f"{'case type':<20} {'action':<28} {'assumed':>8} {'measured':>9}  95% interval     n")
+                for row in r["comparison"]:
+                    if row["trials"]:
+                        print(
+                            f"{row['case_type']:<20} {row['action']:<28} {row['assumed']:>8.2f} {row['measured']:>9.2f}"
+                            f"  {row['low']:.2f}-{row['high']:.2f}  {row['trials']:>5}"
+                        )
+                print("Run `revenueops simulate calibrate` to use these rates in scoring.")
+            else:
+                run = sim.calibrate(session)
+                print(
+                    f"Calibration {str(run.id)[:8]}: {run.report['usable']} rates with enough trials now drive scoring."
+                )
+        except sim.SimulationError as e:
+            print(f"refused: {e}", file=sys.stderr)
+            return 1
+    return 0
+
+
 def _get_case(session: Session, case_id: str) -> Case:
     case = session.get(Case, uuid.UUID(case_id))
     if case is None:
@@ -186,6 +231,10 @@ def main(argv: list[str] | None = None) -> int:
     act.add_argument("--limit", type=int, default=10, help="How many cases (most urgent first)")
     act.add_argument("--case", dest="case_id", help="Act on one case by id")
     sub.add_parser("queue", help="List actions waiting for approval or for a person")
+    simulate = sub.add_parser("simulate", help="Dry run, simulated outcomes, or calibration")
+    simulate.add_argument("what", choices=["dry-run", "outcomes", "calibrate"])
+    simulate.add_argument("--episodes", type=int, default=5000, help="For outcomes: how many simulated cases")
+    simulate.add_argument("--seed", type=int, default=7, help="For outcomes: the random seed (same seed, same run)")
     for name, help_ in (
         ("approve", "Approve a waiting action and run it"),
         ("reject", "Reject a waiting action"),
@@ -210,6 +259,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_act(args.limit, args.case_id)
         if args.command == "queue":
             return cmd_queue()
+        if args.command == "simulate":
+            return cmd_simulate(args.what, args.episodes, args.seed)
         if args.command in ("approve", "reject", "complete", "rollback"):
             return cmd_decide(args.command, args.execution_id, args.by, args.note, getattr(args, "failed", False))
         return cmd_investigate(args.limit, args.case_id)

@@ -21,6 +21,9 @@ from revenueops.executor import engine
 from revenueops.executor.handlers import Writer
 from revenueops.executor.models import Execution, ExecutionStatus, OutboxMessage, OutboxStatus
 from revenueops.policies import all_policies
+from revenueops.simulation import outcomes as sim
+from revenueops.simulation.dry_run import dry_run
+from revenueops.simulation.models import RunKind, SimulationRun
 
 app = FastAPI(title="RevenueOps Autopilot", version=__version__)
 
@@ -75,6 +78,8 @@ class CaseActionOut(BaseModel):
     expected_value: Decimal
     tier: str
     tier_reasons: list[dict[str, Any]]
+    measured: bool
+    trials: int
     ready: bool
     waiting_for: str | None
     status: str
@@ -155,7 +160,8 @@ def get_case(case_id: uuid.UUID, session: SessionDep) -> CaseDetailOut:
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
     executions = engine.executions_of(session, case)
-    next_action = engine.peek_next_action(case, executions)
+    rates, _ = sim.active_rates(session)
+    next_action = engine.peek_next_action(case, executions, rates=rates)
     return CaseDetailOut.model_validate(
         {
             **_case_out(case),
@@ -389,3 +395,74 @@ def run_act(case_id: uuid.UUID, session: SessionDep, store: StoreDep, write: Wri
         "executions": [_execution_out(e) for e in session.scalars(select(Execution).where(Execution.id.in_(ids)))],
         "waiting": bool(run.waiting),
     }
+
+
+# ---------------------------------------------------------------- simulation
+
+
+class SimulationRunOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    seed: int | None
+    params: dict[str, Any]
+    report: dict[str, Any]
+    created_at: datetime
+
+
+def _run_out(r: SimulationRun) -> SimulationRunOut:
+    return SimulationRunOut.model_validate({k: getattr(r, k) for k in SimulationRunOut.model_fields})
+
+
+def _latest(session: Session, kind: RunKind) -> SimulationRun | None:
+    return session.scalars(
+        select(SimulationRun).where(SimulationRun.kind == kind).order_by(SimulationRun.created_at.desc())
+    ).first()
+
+
+class SimulationOverview(BaseModel):
+    dry_run: SimulationRunOut | None
+    outcomes: SimulationRunOut | None
+    calibration: SimulationRunOut | None
+    rates_in_use: str  # what the scorer uses right now
+
+
+@app.get("/simulation")
+def get_simulation(session: SessionDep) -> SimulationOverview:
+    """The latest dry run, outcomes run and calibration. Outcomes are simulated, not real customers."""
+    runs = {k: _latest(session, k) for k in RunKind}
+    rates, _ = sim.active_rates(session)
+    return SimulationOverview(
+        dry_run=_run_out(r) if (r := runs[RunKind.DRY_RUN]) else None,
+        outcomes=_run_out(r) if (r := runs[RunKind.OUTCOMES]) else None,
+        calibration=_run_out(r) if (r := runs[RunKind.CALIBRATION]) else None,
+        rates_in_use=rates.source if rates else "starting estimates",
+    )
+
+
+@app.post("/simulation/dry-run")
+def run_dry_run(session: SessionDep, store: StoreDep, _: AdminDep) -> SimulationRunOut:
+    """What the pipeline would do right now. Reads the store; changes nothing."""
+    rates, _run = sim.active_rates(session)
+    return _run_out(dry_run(session, store, rates, rates.source if rates else None))
+
+
+class OutcomesRequest(BaseModel):
+    episodes: int = Field(default=5000, ge=100, le=100_000)
+    seed: int = Field(default=7, ge=0)
+
+
+@app.post("/simulation/outcomes")
+def run_outcomes(body: OutcomesRequest, session: SessionDep, _: AdminDep) -> SimulationRunOut:
+    try:
+        return _run_out(sim.simulate_outcomes(session, body.episodes, body.seed))
+    except sim.SimulationError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+
+@app.post("/simulation/calibrate")
+def run_calibrate(session: SessionDep, _: AdminDep) -> SimulationRunOut:
+    """Use the latest outcomes run's measured rates in the scorer from now on."""
+    try:
+        return _run_out(sim.calibrate(session))
+    except sim.SimulationError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e

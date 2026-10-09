@@ -10,10 +10,10 @@ and carts that are abandoned. The first store is
 [StoreForge](https://github.com/Ali-mohamed843/ecommerce-saas); the design is
 platform-agnostic, with one adapter per store.
 
-> Status: Phase 5 — the full loop runs from a dashboard: detect revenue at risk,
-> investigate and plan with agents, run safe actions automatically, approve or
-> reject the rest, see every decision explained and audited, and undo what can
-> be undone. Simulation and measured outcomes come next.
+> Status: Phase 6 — the full loop runs from a dashboard (detect, investigate,
+> plan, act, approve, audit, undo), a dry run shows what would happen without
+> doing it, and a seeded outcome simulation measures each action's success rate
+> so scoring no longer rests on guesses. **Outcomes are simulated, not real.**
 
 ## How it fits together
 
@@ -65,9 +65,9 @@ unknown action, a parameter out of range or a rule that doesn't exist are sent
 back to it. Then plain code takes over (`decision/score.py`):
 
 - **Expected value** = (P(recovered with the action) − P(recovered without)) ×
-  value at risk − expected cost. The probabilities are hand-set starting
-  assumptions in `decision/priors.py`; Phase 6 replaces them with measured rates.
-  The model never sets them.
+  value at risk − expected cost. The probabilities start as hand-set estimates
+  in `decision/priors.py` and are replaced by measured rates once a calibration
+  is active (see *Simulation and measured outcomes*). The model never sets them.
 - **Tier:** `auto` (harmless if wrong, or undoable, and within every limit),
   `approval`, or `human_only`. The most important policy limits are written in
   code as well — refunds over 300 EGP always need a person, discounts above 10%
@@ -115,6 +115,34 @@ Policy retrieval is just "every policy tagged with this case type". With five
 short documents that is exact and complete; a vector store would only add a way
 to miss a rule.
 
+## Simulation and measured outcomes
+
+The decision engine needs to know how often each action works. It starts from
+hand-set estimates (`decision/priors.py`); Phase 6 measures them instead.
+
+- **Dry run** (`revenueops simulate dry-run`): detection reads the store, every
+  case is scored exactly as the executor would, and a recorder takes the
+  executor's place. The report gives the cases found, the action mix, what
+  would run alone vs need a person, the expected recovery, and the high-risk
+  actions. Nothing is executed and no model is called.
+- **Outcomes** (`revenueops simulate outcomes --episodes 5000 --seed 7`): a
+  seeded model of customer behaviour (`simulation/world.py`) stands in for real
+  customers. Its probabilities differ from the starting estimates on purpose and
+  depend on the segment (COD risk × order size); the scorer never sees them.
+  Each simulated case gets a random action, or none as the control group, so
+  the measured uplift is unbiased. Rates come with 95% Wilson intervals; over
+  40 seeds the intervals covered the hidden truth 93.9% of the time.
+- **Calibrate** (`revenueops simulate calibrate`): freezes those rates as what
+  the scorer uses. A measured rate replaces an estimate only with ≥ 30 trials,
+  and only as a with/without pair; every score records whether its chances were
+  measured or assumed, and each plan records which calibration it used.
+
+On the demo data, measuring changed real numbers: unconfirmed orders recover on
+their own far less often than assumed (15% vs 25%), recommending cancellation
+adds nothing over doing nothing, and a goodwill discount on late shipments works
+worse than assumed (73% vs 82%). **These are simulated outcomes**; they stand in
+until there are enough real ones.
+
 ## The dashboard
 
 `dashboard/` is a Next.js 15 app over the agent service API:
@@ -133,6 +161,8 @@ to miss a rule.
   a person can do.
 - **Activity** — every action, with undo. **Outbox** — drafted messages,
   Arabic shown right-to-left. **Policies** — every rule, linkable.
+  **Simulation** — run a dry run, simulate outcomes, compare measured against
+  assumed, and switch scoring to the measured rates.
 
 The look comes from a Claude Design canvas ("RevenueOps 2060"): warm neutrals,
 Newsreader for headings and figures, Geist for the interface, IBM Plex Sans
@@ -234,6 +264,7 @@ agent-service/
     agents/         LLM clients, tool loop, Investigator, Strategist
     decision/       action catalogue, starting priors, scorer (pure code)
     executor/       handlers per action, the executor, executions and outbox tables
+    simulation/     dry run, the simulated world, outcomes and calibration
     policies/       the store's rules as markdown
     pipeline.py     detect, then investigate
     cli.py, main.py command line and HTTP API

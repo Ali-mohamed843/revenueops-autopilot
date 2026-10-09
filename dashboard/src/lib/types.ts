@@ -88,6 +88,8 @@ export interface CaseAction {
   expected_value: string;
   tier: Tier;
   tier_reasons: TierReason[];
+  measured: boolean; // chances measured from (simulated) outcomes, not starting estimates
+  trials: number;
   ready: boolean;
   waiting_for: string | null;
   status: string;
@@ -195,4 +197,55 @@ export interface Policy {
   title: string;
   applies_to: CaseType[];
   rules: { id: string; text: string }[];
+}
+
+export interface ComparisonRow {
+  case_type: CaseType;
+  action: string; // a catalogue key, or "none" for no action
+  assumed: number;
+  measured: number | null;
+  low: number;
+  high: number;
+  successes: number;
+  trials: number;
+  enough: boolean;
+}
+
+export interface DryRunReport {
+  cases: number;
+  value_at_risk: string;
+  tiers: { auto: number; approval: number; human_only: number; waiting: number; nothing_ready: number };
+  tier_value: Record<string, string>;
+  actions: Record<string, number>;
+  expected_recovery: string;
+  approvals_needed: number;
+  measured_share: number | null;
+  planned_by: Record<string, number>;
+  high_risk: {
+    case_id: string | null;
+    case_type: CaseType;
+    subject: string;
+    value: string;
+    action: string;
+    tier: Tier;
+    reason: string;
+    rule: string | null;
+  }[];
+  high_risk_total: number;
+}
+
+export interface SimulationRun<R = Record<string, unknown>> {
+  id: string;
+  kind: "dry_run" | "outcomes" | "calibration";
+  seed: number | null;
+  params: Record<string, unknown>;
+  report: R;
+  created_at: string;
+}
+
+export interface SimulationOverview {
+  dry_run: SimulationRun<DryRunReport> | null;
+  outcomes: SimulationRun<{ episodes: number; recovered: number; comparison: ComparisonRow[] }> | null;
+  calibration: SimulationRun<{ usable: number; episodes: number }> | null;
+  rates_in_use: string;
 }

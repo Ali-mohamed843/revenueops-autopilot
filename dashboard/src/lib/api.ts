@@ -1,6 +1,15 @@
 import "server-only";
 
-import type { CaseDetail, CaseSummary, Execution, OutboxMessage, Policy, Stats } from "./types";
+import type {
+  CaseDetail,
+  CaseSummary,
+  Execution,
+  OutboxMessage,
+  Policy,
+  SimulationOverview,
+  SimulationRun,
+  Stats,
+} from "./types";
 
 // Server-side only: the browser never talks to the agent service, so the admin key never leaves
 // the server. AGENT_API_URL and ADMIN_API_KEY come from dashboard/.env.local.
@@ -72,6 +81,7 @@ export const api = {
   outbox: (params: { status?: string[]; limit?: number }) =>
     request<OutboxMessage[]>(`/outbox${query({ ...params, limit: params.limit ?? 100 })}`),
   policies: () => request<Policy[]>("/policies"),
+  simulation: () => request<SimulationOverview>("/simulation"),
 
   // Actions (admin key).
   approve: (id: string, by: string, note?: string) =>
@@ -95,6 +105,10 @@ export const api = {
       method: "POST",
       admin: true,
     }),
+  dryRun: () => request<SimulationRun>("/simulation/dry-run", { method: "POST", admin: true }),
+  simulateOutcomes: (episodes: number, seed: number) =>
+    request<SimulationRun>("/simulation/outcomes", { method: "POST", admin: true, body: JSON.stringify({ episodes, seed }) }),
+  calibrate: () => request<SimulationRun>("/simulation/calibrate", { method: "POST", admin: true }),
   investigate: (id: string) => request<CaseSummary>(`/cases/${id}/investigate`, { method: "POST", admin: true }),
   plan: (id: string) => request<CaseSummary>(`/cases/${id}/plan`, { method: "POST", admin: true }),
   act: (id: string) =>

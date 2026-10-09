@@ -22,6 +22,7 @@ from typing import Any
 from revenueops.decision import priors
 from revenueops.decision.catalogue import CATALOGUE, Kind
 from revenueops.decision.escalation import readiness
+from revenueops.decision.rates import NO_ACTION, RateTable
 
 CENTS = Decimal("0.01")
 
@@ -52,6 +53,7 @@ class CaseFacts:
     confidence: float | None = None  # the investigation's confidence in its own findings
     done_hours_ago: Mapping[str, float] = field(default_factory=dict)  # actions already carried out
     available: frozenset[str] | None = None  # actions this store can do; None = the whole catalogue
+    rates: RateTable | None = None  # measured success rates; None = the starting estimates only
 
 
 @dataclass(frozen=True)
@@ -73,6 +75,8 @@ class Score:
     reasons: tuple[Reason, ...]
     ready: bool = True  # False while an earlier escalation step still has to work
     waiting_for: str | None = None
+    measured: bool = False  # True when both chances come from measured rates, not starting estimates
+    trials: int = 0  # how many trials the measured chance with the action rests on
 
 
 def score(action: str, params: dict[str, Any], case: CaseFacts) -> Score:
@@ -81,6 +85,14 @@ def score(action: str, params: dict[str, Any], case: CaseFacts) -> Score:
     value = case.value_at_risk
     p_without = priors.BASELINE[case.case_type]
     p_with = priors.WITH_ACTION.get((action, case.case_type), p_without)
+    measured_with = measured_without = None
+    if case.rates is not None:
+        measured_with = case.rates.get(action, case.case_type)
+        measured_without = case.rates.get(NO_ACTION, case.case_type)
+    # Measured rates replace the estimates only as a pair: an uplift mixing the two would mean nothing.
+    measured = measured_with is not None and measured_without is not None
+    if measured_with is not None and measured_without is not None:
+        p_with, p_without = measured_with.p, measured_without.p
 
     cost = spec.cost
     if action == "offer_discount":
@@ -102,6 +114,8 @@ def score(action: str, params: dict[str, Any], case: CaseFacts) -> Score:
         reasons=reasons,
         ready=when.ready,
         waiting_for=when.waiting_for,
+        measured=measured,
+        trials=measured_with.trials if measured_with is not None and measured else 0,
     )
 
 

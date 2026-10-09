@@ -70,6 +70,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <NavLink href="/activity">Activity</NavLink>
               <NavLink href="/outbox">Outbox</NavLink>
               <NavLink href="/policies">Policies</NavLink>
+              <NavLink href="/simulation">Simulation</NavLink>
             </nav>
             <div className="ms-auto flex h-14 items-center gap-3 md:ms-0">
               <span className="hidden items-center gap-2 text-[13px] text-muted sm:inline-flex">

@@ -25,3 +25,8 @@ def test_parse() -> None:
         parse("# no header")
     with pytest.raises(ValueError, match="missing applies_to"):
         parse("---\nid: X\ntitle: T\n---\nbody")
+
+
+def test_rule_texts_give_each_rule_its_sentence() -> None:
+    p = parse("---\nid: X\ntitle: T\napplies_to: a\n---\n- **X-1** First rule.\n- **X-2** Second rule.\n")
+    assert p.rule_texts() == {"X-1": "First rule.", "X-2": "Second rule."}

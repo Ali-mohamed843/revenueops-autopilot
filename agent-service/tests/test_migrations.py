@@ -8,6 +8,7 @@ from sqlalchemy import create_engine
 
 import revenueops.cases.models  # noqa: F401
 import revenueops.executor.models  # noqa: F401
+import revenueops.simulation.models  # noqa: F401
 from revenueops.db import Base
 
 ROOT = Path(__file__).parent.parent
