@@ -10,16 +10,17 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Engine, select
 from sqlalchemy.orm import Session
 
-from revenueops import __version__
+from revenueops import __version__, pipeline, stats
 from revenueops.adapters.base import StoreAdapter
 from revenueops.adapters.registry import build_adapter
-from revenueops.agents.llm import build_llm
+from revenueops.agents.llm import LLMClient, build_llm
 from revenueops.cases.models import ActionStatus, Case, CaseStatus, CaseType
 from revenueops.config import Settings, get_settings
 from revenueops.db import database_is_up, get_engine, get_session
 from revenueops.executor import engine
 from revenueops.executor.handlers import Writer
 from revenueops.executor.models import Execution, ExecutionStatus, OutboxMessage, OutboxStatus
+from revenueops.policies import all_policies
 
 app = FastAPI(title="RevenueOps Autopilot", version=__version__)
 
@@ -96,6 +97,7 @@ class OutboxOut(BaseModel):
 class ExecutionOut(BaseModel):
     id: uuid.UUID
     case_id: uuid.UUID
+    case_action_id: uuid.UUID
     action_type: str
     params: dict[str, Any]
     tier: str
@@ -122,6 +124,7 @@ class CaseDetailOut(CaseOut):
     investigation: dict[str, Any] | None
     plan: dict[str, Any] | None
     actions: list[CaseActionOut]  # the current plan, best first
+    next_action_id: uuid.UUID | None  # what `act` would take now, if anything
     executions: list[ExecutionOut]
     events: list[CaseEventOut]
 
@@ -151,6 +154,8 @@ def get_case(case_id: uuid.UUID, session: SessionDep) -> CaseDetailOut:
     case = session.get(Case, case_id)
     if case is None:
         raise HTTPException(status_code=404, detail="Case not found")
+    executions = engine.executions_of(session, case)
+    next_action = engine.peek_next_action(case, executions)
     return CaseDetailOut.model_validate(
         {
             **_case_out(case),
@@ -161,7 +166,8 @@ def get_case(case_id: uuid.UUID, session: SessionDep) -> CaseDetailOut:
                 for a in case.actions
                 if a.status == ActionStatus.PROPOSED
             ],
-            "executions": [_execution_out(e) for e in engine.executions_of(session, case)],
+            "executions": [_execution_out(e) for e in executions],
+            "next_action_id": next_action.id if next_action else None,
             "events": [{"type": e.type, "actor": e.actor, "data": e.data, "at": e.at} for e in case.events],
         }
     )
@@ -194,12 +200,17 @@ def get_store() -> Iterator[StoreAdapter]:
     yield build_adapter(get_settings())
 
 
-def get_writer() -> Writer:
-    return engine.messenger_writer(build_llm(get_settings()))
+def get_llm() -> LLMClient:
+    return build_llm(get_settings())
+
+
+def get_writer(llm: Annotated[LLMClient, Depends(get_llm)]) -> Writer:
+    return engine.messenger_writer(llm)
 
 
 AdminDep = Annotated[None, Depends(require_admin)]
 StoreDep = Annotated[StoreAdapter, Depends(get_store)]
+LLMDep = Annotated[LLMClient, Depends(get_llm)]
 WriterDep = Annotated[Writer, Depends(get_writer)]
 
 
@@ -284,3 +295,97 @@ def rollback_execution(
         return _execution_out(engine.rollback(session, store, execution_id, body.by, body.reason))
     except engine.ExecutorError as e:
         raise _refused(e) from e
+
+
+# ---------------------------------------------------------------- dashboard
+
+
+@app.get("/stats")
+def get_stats(session: SessionDep, days: Annotated[int, Query(ge=1, le=365)] = 30) -> dict[str, Any]:
+    """Headline numbers and chart series for the dashboard, over the last `days` days."""
+    return stats.overview(session, days)
+
+
+class RuleOut(BaseModel):
+    id: str
+    text: str
+
+
+class PolicyOut(BaseModel):
+    id: str
+    title: str
+    applies_to: list[str]
+    rules: list[RuleOut]
+
+
+@app.get("/policies")
+def list_policies() -> list[PolicyOut]:
+    return [
+        PolicyOut(
+            id=p.id,
+            title=p.title,
+            applies_to=list(p.applies_to),
+            rules=[RuleOut(id=i, text=t) for i, t in p.rule_texts().items()],
+        )
+        for p in all_policies()
+    ]
+
+
+# ------------------------------------------------- running the pipeline
+
+
+def _case(session: Session, case_id: uuid.UUID) -> Case:
+    case = session.get(Case, case_id)
+    if case is None:
+        raise HTTPException(status_code=404, detail="Case not found")
+    return case
+
+
+@app.post("/detect")
+def run_detect(session: SessionDep, store: StoreDep, _: AdminDep) -> dict[str, Any]:
+    """Scan the store now: open, update or close cases."""
+    run = pipeline.detect(session, store)
+    s = run.sync
+    return {
+        "found": len(run.result.candidates),
+        "opened": s.opened,
+        "updated": s.updated,
+        "reclassified": s.reclassified,
+        "closed": s.closed,
+    }
+
+
+@app.post("/cases/{case_id}/investigate")
+def run_investigate(case_id: uuid.UUID, session: SessionDep, store: StoreDep, llm: LLMDep, _: AdminDep) -> CaseOut:
+    case = _case(session, case_id)
+    if case.status == CaseStatus.CLOSED:
+        raise HTTPException(status_code=409, detail="The case is closed")
+    run = pipeline.investigate_cases(session, store, llm, [case])
+    if run.failed:
+        raise HTTPException(status_code=502, detail=run.failed[case.id])
+    return CaseOut.model_validate(_case_out(case))
+
+
+@app.post("/cases/{case_id}/plan")
+def run_plan(case_id: uuid.UUID, session: SessionDep, store: StoreDep, llm: LLMDep, _: AdminDep) -> CaseOut:
+    case = _case(session, case_id)
+    if not case.investigation or case.status == CaseStatus.CLOSED:
+        raise HTTPException(status_code=409, detail="Investigate the case before planning it")
+    run = pipeline.plan_cases(session, store, llm, [case])
+    if run.failed:
+        raise HTTPException(status_code=502, detail=run.failed[case.id])
+    return CaseOut.model_validate(_case_out(case))
+
+
+@app.post("/cases/{case_id}/act")
+def run_act(case_id: uuid.UUID, session: SessionDep, store: StoreDep, write: WriterDep, _: AdminDep) -> dict[str, Any]:
+    """Take the case's next ready action: run it if it is auto, otherwise queue it for a person."""
+    case = _case(session, case_id)
+    if case.status not in (CaseStatus.PLANNED, CaseStatus.ACTED):
+        raise HTTPException(status_code=409, detail=f"The case is {case.status}; only planned cases can act")
+    run = engine.act(session, store, write, [case])
+    ids = run.ran + run.queued + run.failed
+    return {
+        "executions": [_execution_out(e) for e in session.scalars(select(Execution).where(Execution.id.in_(ids)))],
+        "waiting": bool(run.waiting),
+    }

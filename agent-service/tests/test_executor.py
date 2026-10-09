@@ -18,6 +18,7 @@ from revenueops.executor.engine import (
     approve,
     complete,
     executions_of,
+    peek_next_action,
     reject,
     rollback,
 )
@@ -328,3 +329,29 @@ def test_messages_only_go_to_real_phone_numbers(session: Session, phone: str, ok
         assert ex.messages[0].recipient == phone.replace(" ", "").replace("-", "")
     else:
         assert ex.error is not None and "is not a phone number" in ex.error
+
+
+def test_peek_shows_what_act_would_take_next(session: Session) -> None:
+    case, store = unconfirmed(session)
+    reminder, hold, call = case.actions
+    assert peek_next_action(case, [], NOW) is reminder
+    act(session, store, write, [case], now=NOW)
+    assert peek_next_action(case, executions_of(session, case), NOW) is hold
+    act(session, store, write, [case], now=NOW)
+    assert peek_next_action(case, executions_of(session, case), NOW) is None  # the call waits 24h
+    assert peek_next_action(case, executions_of(session, case), NOW + timedelta(hours=24)) is call
+    assert case.plan is not None and "send_confirmation_reminder" in case.plan["available"]
+
+
+def test_repeated_products_are_merged_in_messages(session: Session) -> None:
+    from revenueops.commerce.models import CartLine
+
+    c = cart("c1", idle_hours=48)
+    c = c.model_copy(
+        update={"lines": [*c.lines, CartLine(product_name="Mug", quantity=1, price_when_added=Decimal(250))]}
+    )
+    store = FakeStore(carts=[c])
+    case = planned(session, store, p("send_cart_reminder", {"channel": "sms"}))
+    briefs.clear()
+    act(session, store, write, [case], now=NOW)
+    assert briefs[-1].facts["items"] == "Mug x3"

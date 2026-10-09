@@ -13,6 +13,7 @@ from functools import cache
 from importlib import resources
 
 RULE = re.compile(r"\*\*([A-Z]+-\d+)\*\*")
+RULE_LINE = re.compile(r"^- \*\*([A-Z]+-\d+)\*\* (.+)$", re.M)
 
 
 @dataclass(frozen=True)
@@ -22,6 +23,10 @@ class Policy:
     applies_to: tuple[str, ...]
     text: str  # the markdown body, without the header
     rules: tuple[str, ...]  # rule ids in order of appearance
+
+    def rule_texts(self) -> dict[str, str]:
+        """Rule id -> its sentence, for showing a cited rule in full."""
+        return dict(RULE_LINE.findall(self.text))
 
 
 def parse(source: str) -> Policy:

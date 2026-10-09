@@ -10,10 +10,10 @@ and carts that are abandoned. The first store is
 [StoreForge](https://github.com/Ali-mohamed843/ecommerce-saas); the design is
 platform-agnostic, with one adapter per store.
 
-> Status: Phase 4 — the service detects revenue-at-risk cases in a live store,
-> investigates and plans them with agents, and carries the actions out: `auto`
-> actions run on their own, the rest wait for a person, every step is audited
-> and undoable actions can be rolled back. A dashboard comes next.
+> Status: Phase 5 — the full loop runs from a dashboard: detect revenue at risk,
+> investigate and plan with agents, run safe actions automatically, approve or
+> reject the rest, see every decision explained and audited, and undo what can
+> be undone. Simulation and measured outcomes come next.
 
 ## How it fits together
 
@@ -115,6 +115,37 @@ Policy retrieval is just "every policy tagged with this case type". With five
 short documents that is exact and complete; a vector store would only add a way
 to miss a rule.
 
+## The dashboard
+
+`dashboard/` is a Next.js 15 app over the agent service API:
+
+- **Overview** — revenue at risk, what's waiting for you, a brief from the
+  numbers, and charts: where the risk is by case type, how actions were decided,
+  the recovery rate, newly at risk vs recovered per day, and the case pipeline.
+  A date range scopes everything.
+- **Cases** — filter by stage and type; each case page answers *why this
+  action?*: the Strategist's read, the next action with its expected gain and
+  recovery chances, why it may run alone or needs a person (with the policy
+  rules), the rest of the plan with escalation steps, the investigation's
+  evidence, every action taken, and the audit trail. Buttons run the next
+  pipeline step.
+- **Approvals** — approve or reject queued actions; report back on tasks only
+  a person can do.
+- **Activity** — every action, with undo. **Outbox** — drafted messages,
+  Arabic shown right-to-left. **Policies** — every rule, linkable.
+
+The look comes from a Claude Design canvas ("RevenueOps 2060"): warm neutrals,
+Newsreader for headings and figures, Geist for the interface, IBM Plex Sans
+Arabic for Arabic messages (all self-hosted through `next/font`), light and
+dark themes. Status is never colour alone (each colour comes with its label),
+chart legends carry the exact values, and the line chart has a screen-reader
+table. The Overview's brief is written by code from the page's own numbers, not
+by a model. The browser never talks to the agent service: pages render on the
+dashboard's server and actions go through server actions, so the admin key
+stays on the server. Decisions are recorded under the name you set with the
+round button at the top right (a name for the audit trail, not authentication;
+run it locally).
+
 ## Run it locally
 
 Requirements: [uv](https://docs.astral.sh/uv/), Docker, and StoreForge running
@@ -134,6 +165,17 @@ uv run revenueops act
 uv run revenueops queue
 uv run uvicorn revenueops.main:app --reload --port 8000
 ```
+
+Then the dashboard, in another terminal:
+
+```bash
+cd dashboard
+cp .env.local.example .env.local   # set ADMIN_API_KEY to the agent service's
+npm install
+npm run dev -- --port 3001
+```
+
+Open http://localhost:3001 (port 3000 is StoreForge).
 
 - `revenueops detect` scans the store and opens, updates or closes cases.
 - `revenueops investigate` runs the Investigator on the most urgent open cases
@@ -174,7 +216,8 @@ uv run lint-imports
 uv run pytest
 ```
 
-CI runs the same checks on Ubuntu and Windows. Tests need no network or API
+CI runs the same checks on Ubuntu and Windows, and lints, type-checks, tests
+and builds the dashboard (`npm run lint`, `typecheck`, `test`, `build`). Tests need no network or API
 key: the StoreForge adapter is tested against recorded real responses
 (`tests/fixtures/storeforge`, re-record with `record.py` there), and the agents
 against a scripted model.
@@ -196,5 +239,6 @@ agent-service/
     cli.py, main.py command line and HTTP API
   migrations/       Alembic
   tests/
+dashboard/          Next.js 15 + Tailwind 4 dashboard (port 3001)
 docker-compose.yml  local Postgres on port 5433
 ```

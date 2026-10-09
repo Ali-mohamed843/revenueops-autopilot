@@ -12,7 +12,7 @@ The safety rules, each enforced here and tested:
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -88,7 +88,27 @@ def next_action(
     case: Case, executions: list[Execution], has: set[str], now: datetime
 ) -> tuple[CaseAction, Score] | None:
     """The best proposed action that is ready now and was never tried, scored afresh."""
-    facts = _facts(case, executions, has, now)
+    return _pick(case, executions, _facts(case, executions, has, now))
+
+
+def peek_next_action(case: Case, executions: list[Execution], now: datetime | None = None) -> CaseAction | None:
+    """What act() would take next, for display: uses the store abilities recorded with the plan."""
+    if case.status not in (CaseStatus.PLANNED, CaseStatus.ACTED) or not case.plan:
+        return None
+    available = case.plan.get("available")
+    facts = _facts(case, executions, set(), now or now_utc())
+    if available is not None:  # plans made before this field existed fall back to the whole catalogue
+        facts = replace(facts, available=frozenset(available))
+    else:
+        facts = replace(facts, available=frozenset(a.key for a in actions_for(case.case_type, _ALL)))
+    pick = _pick(case, executions, facts)
+    return pick[0] if pick else None
+
+
+_ALL = {f.name for f in fields(Capabilities)}
+
+
+def _pick(case: Case, executions: list[Execution], facts: CaseFacts) -> tuple[CaseAction, Score] | None:
     tried = {e.case_action_id for e in executions}
     candidates = [
         a

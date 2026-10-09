@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens, from the "RevenueOps 2060" design (Claude Design canvas): warm neutrals, a serif
+ * for headings and figures (Newsreader), Geist for the interface. Components use roles, never hex.
+ * Status colours always come with a text label: green = done / automatic, amber = waiting for a
+ * person, red = failed. Chart colours 1-6 follow the design's order.
+ */
+:root {
+  color-scheme: light;
+  --bg: #f6f4ef;
+  --card: #ffffff;
+  --inset: #f4f1eb; /* message bodies, inset panels */
+  --hover: #faf8f4;
+  --line: #e6e2da; /* card borders */
+  --line-2: #ece8e0; /* dividers inside cards, header */
+  --line-3: #f0ece5; /* faint dividers, gridlines */
+  --field: #ddd8cf;
+  --btn-line: #d6d1c7;
+  --track: #eeeae3;
+  --ink: #1a1917;
+  --ink-strong: #000000;
+  --ink-2: #57534c;
+  --prose: #2e2c28;
+  --muted: #6f6a62; /* 5.4:1 on the card */
+  --faint: #a39e94; /* large or decorative only */
+  --primary: #1a1917;
+  --primary-ink: #f6f4ef;
+  --primary-hover: #000000;
+  --good: #3f7a57; /* text */
+  --good-mark: #4f8a66; /* marks */
+  --warn: #9a6412; /* text */
+  --warn-mark: #e2a653; /* marks, the amber button */
+  --warn-soft: #fbf4e6;
+  --warn-line: #ebcb94;
+  --warn-divider: #ebddc2;
+  --warn-heading: #8a5a10;
+  --bad: #b5513c;
+  --bad-soft: rgba(181, 81, 60, 0.06);
+  --info: #4a6a93;
+  --c1: #4f8a66;
+  --c2: #4a6a93;
+  --c3: #8f7bbf;
+  --c4: #a9cdb5;
+  --c5: #a9bcd4;
+  --c6: #cfc9be;
+  --spark: #cfc9be;
+  --card-shadow: 0 1px 2px rgba(26, 25, 23, 0.04);
+  --pop-shadow: 0 10px 30px rgba(26, 25, 23, 0.12), 0 2px 6px rgba(26, 25, 23, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #0e0e0d;
+    --card: #161614;
+    --inset: #1c1c1a;
+    --hover: #1a1a18;
+    --line: #262522;
+    --line-2: #222220;
+    --line-3: #1f1f1d;
+    --field: #2a2926;
+    --btn-line: #34332f;
+    --track: #262522;
+    --ink: #edeae3;
+    --ink-strong: #ffffff;
+    --ink-2: #b3afa6;
+    --prose: #d9d5cd;
+    --muted: #8c887f;
+    --faint: #6f6b63;
+    --primary: #edeae3;
+    --primary-ink: #121211;
+    --primary-hover: #ffffff;
+    --good: #93c3a4;
+    --good-mark: #93c3a4;
+    --warn: #e2a653;
+    --warn-mark: #e2a653;
+    --warn-soft: #161614;
+    --warn-line: rgba(226, 166, 83, 0.45);
+    --warn-divider: #262522;
+    --warn-heading: #e2a653;
+    --bad: #e07a65;
+    --bad-soft: rgba(224, 122, 101, 0.05);
+    --info: #8ea7c6;
+    --c1: #93c3a4;
+    --c2: #8ea7c6;
+    --c3: #b7a6d4;
+    --c4: #4e6a57;
+    --c5: #4d5b70;
+    --c6: #5c5953;
+    --spark: #4a4843;
+    --card-shadow: none;
+    --pop-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e0e0d;
+  --card: #161614;
+  --inset: #1c1c1a;
+  --hover: #1a1a18;
+  --line: #262522;
+  --line-2: #222220;
+  --line-3: #1f1f1d;
+  --field: #2a2926;
+  --btn-line: #34332f;
+  --track: #262522;
+  --ink: #edeae3;
+  --ink-strong: #ffffff;
+  --ink-2: #b3afa6;
+  --prose: #d9d5cd;
+  --muted: #8c887f;
+  --faint: #6f6b63;
+  --primary: #edeae3;
+  --primary-ink: #121211;
+  --primary-hover: #ffffff;
+  --good: #93c3a4;
+  --good-mark: #93c3a4;
+  --warn: #e2a653;
+  --warn-mark: #e2a653;
+  --warn-soft: #161614;
+  --warn-line: rgba(226, 166, 83, 0.45);
+  --warn-divider: #262522;
+  --warn-heading: #e2a653;
+  --bad: #e07a65;
+  --bad-soft: rgba(224, 122, 101, 0.05);
+  --info: #8ea7c6;
+  --c1: #93c3a4;
+  --c2: #8ea7c6;
+  --c3: #b7a6d4;
+  --c4: #4e6a57;
+  --c5: #4d5b70;
+  --c6: #5c5953;
+  --spark: #4a4843;
+  --card-shadow: none;
+  --pop-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-inset: var(--inset);
+  --color-hover: var(--hover);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-line-3: var(--line-3);
+  --color-field: var(--field);
+  --color-btn-line: var(--btn-line);
+  --color-track: var(--track);
+  --color-ink: var(--ink);
+  --color-ink-strong: var(--ink-strong);
+  --color-ink-2: var(--ink-2);
+  --color-prose: var(--prose);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-primary: var(--primary);
+  --color-primary-ink: var(--primary-ink);
+  --color-primary-hover: var(--primary-hover);
+  --color-good: var(--good);
+  --color-good-mark: var(--good-mark);
+  --color-warn: var(--warn);
+  --color-warn-mark: var(--warn-mark);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-line: var(--warn-line);
+  --color-warn-divider: var(--warn-divider);
+  --color-warn-heading: var(--warn-heading);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-info: var(--info);
+  --color-c1: var(--c1);
+  --color-c2: var(--c2);
+  --color-c3: var(--c3);
+  --color-c4: var(--c4);
+  --color-c5: var(--c5);
+  --color-c6: var(--c6);
+  --font-sans: var(--font-geist), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-serif: var(--font-newsreader), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, Consolas, monospace;
+  --font-arabic: var(--font-plex-arabic), var(--font-geist), "Segoe UI", sans-serif;
+  --shadow-card: var(--card-shadow);
+  --shadow-pop: var(--pop-shadow);
+}
+
+/* Base rules live in the base layer, so Tailwind utilities (text-*, bg-*) always win over them. */
+@layer base {
+  html,
+  body {
+    background: var(--bg);
+  }
+
+  body {
+    /* Content streaming in (a page replacing its loading skeleton) must never push the view around. */
+    overflow-anchor: none;
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--warn-mark) 30%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+/* Serif headings and figures, with optical sizing. */
+.serif {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+}
+
+/* Numbers that line up in columns; big standalone figures keep lining digits too, as designed. */
+.num {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Arabic message bodies. */
+.arabic {
+  font-family: var(--font-arabic);
+}
+
+/* In the components layer so utilities (e.g. the amber "waiting" card) can override it. */
+@layer components {
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--card-shadow);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

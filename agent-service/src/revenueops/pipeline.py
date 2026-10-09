@@ -190,7 +190,8 @@ def save_plan(case: Case, result: AgentResult[Strategy], available: set[str]) ->
         "duration_ms": result.duration_ms,
         "usage": asdict(result.usage),
     }
-    case.plan = {"approach": result.output.approach, **meta}
+    # What the store could do when planned: lets the dashboard show the next step without a store call.
+    case.plan = {"approach": result.output.approach, "available": sorted(available), **meta}
     case.status = CaseStatus.PLANNED
     summary = (
         {"action": best.action, "tier": str(best.tier), "expected_value": str(best.expected_value)} if best else None

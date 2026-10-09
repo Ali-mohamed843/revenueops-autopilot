@@ -9,7 +9,7 @@ report back.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -99,16 +99,21 @@ def _customer_message(ctx: Ctx, phone: str | None, brief: MessageBrief) -> Messa
     return Message(channel=channel, recipient=phone or "", language=language, body=body, drafted_by=drafted_by)
 
 
+def _items(lines: Iterable[tuple[str, int]]) -> str:
+    """'Mug x3, Lamp x1': one product can span several lines (sizes, colours), so merge them."""
+    quantities: dict[str, int] = {}
+    for name, qty in lines:
+        quantities[name] = quantities.get(name, 0) + qty
+    return ", ".join(f"{name} x{qty}" for name, qty in quantities.items())
+
+
 def _order_facts(ctx: Ctx) -> dict[str, str]:
     o = ctx.order
     facts = {"order reference": ctx.order_ref, "order total": _money(o.total)}
     if o.customer.name:
         facts["customer name"] = o.customer.name
     if o.lines:
-        quantities: dict[str, int] = {}
-        for line in o.lines:  # one product can span several lines (sizes, colours)
-            quantities[line.product_name] = quantities.get(line.product_name, 0) + line.quantity
-        facts["items"] = ", ".join(f"{name} x{qty}" for name, qty in quantities.items())
+        facts["items"] = _items((line.product_name, line.quantity) for line in o.lines)
     return facts
 
 
@@ -148,7 +153,7 @@ def cart_reminder(ctx: Ctx) -> Outcome:
     if signals.get("customer_name"):
         facts["customer name"] = str(signals["customer_name"])
     if lines:
-        facts["items"] = ", ".join(f"{line.get('product_name')} x{line.get('quantity')}" for line in lines)
+        facts["items"] = _items((str(line.get("product_name")), int(line.get("quantity") or 0)) for line in lines)
     brief = MessageBrief(
         purpose="Remind the customer that items are still waiting in their cart.",
         facts=facts,

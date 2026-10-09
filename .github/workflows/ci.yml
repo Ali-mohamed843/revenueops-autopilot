@@ -25,3 +25,21 @@ jobs:
       - run: uv run pytest -v
       # The decision engine decides what may run without a human: every branch must be tested.
       - run: uv run pytest -q tests/test_decision.py tests/test_policies.py --cov=revenueops.decision --cov=revenueops.policies --cov-branch --cov-fail-under=100
+
+  dashboard:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
