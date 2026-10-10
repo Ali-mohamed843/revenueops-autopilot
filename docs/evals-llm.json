@@ -1,0 +1,1174 @@
+{
+ "summary": {
+  "mode": "llm",
+  "model": "glm-5.3",
+  "scenarios": 40,
+  "scored": 40,
+  "errors": 0,
+  "accuracy": 1.0,
+  "action_accuracy": 1.0,
+  "false_auto": 0,
+  "false_auto_rate": 0.0,
+  "unexpected_auto": 0,
+  "by_case_type": {
+   "abandoned_cart": {
+    "correct": 7,
+    "of": 7
+   },
+   "late_shipment": {
+    "correct": 6,
+    "of": 6
+   },
+   "refusal_risk": {
+    "correct": 8,
+    "of": 8
+   },
+   "stale_return": {
+    "correct": 6,
+    "of": 6
+   },
+   "stalled_fulfilment": {
+    "correct": 5,
+    "of": 5
+   },
+   "unconfirmed_order": {
+    "correct": 8,
+    "of": 8
+   }
+  },
+  "tokens": 174606,
+  "cost_usd": 0.2375,
+  "cost_per_case_usd": 0.00594,
+  "seconds_per_case": 32.9
+ },
+ "results": [
+  {
+   "id": "U1",
+   "case_type": "unconfirmed_order",
+   "title": "Unconfirmed for 30h, reliable buyer",
+   "acceptable": {
+    "send_confirmation_reminder": [
+     "auto"
+    ]
+   },
+   "action": "send_confirmation_reminder",
+   "tier": "auto",
+   "params": {
+    "channel": "whatsapp"
+   },
+   "expected_value": "239.50",
+   "proposed": [
+    "hold_dispatch",
+    "send_confirmation_reminder",
+    "request_phone_confirmation"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4516,
+   "seconds": 36.5
+  },
+  {
+   "id": "U2",
+   "case_type": "unconfirmed_order",
+   "title": "Unconfirmed 41K order, very reliable buyer",
+   "acceptable": {
+    "send_confirmation_reminder": [
+     "auto"
+    ],
+    "hold_dispatch": [
+     "approval"
+    ]
+   },
+   "action": "send_confirmation_reminder",
+   "tier": "auto",
+   "params": {
+    "channel": "whatsapp"
+   },
+   "expected_value": "8216.36",
+   "proposed": [
+    "send_confirmation_reminder",
+    "hold_dispatch",
+    "request_phone_confirmation"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4041,
+   "seconds": 23.7
+  },
+  {
+   "id": "U3",
+   "case_type": "unconfirmed_order",
+   "title": "Reminder unanswered for 30h",
+   "acceptable": {
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "auto"
+    ]
+   },
+   "action": "request_phone_confirmation",
+   "tier": "human_only",
+   "params": {},
+   "expected_value": "592.00",
+   "proposed": [
+    "hold_dispatch",
+    "request_phone_confirmation"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3996,
+   "seconds": 31.2
+  },
+  {
+   "id": "U4",
+   "case_type": "unconfirmed_order",
+   "title": "Reminder sent only 6h ago",
+   "acceptable": {
+    "none": [],
+    "hold_dispatch": [
+     "auto"
+    ]
+   },
+   "action": "hold_dispatch",
+   "tier": "auto",
+   "params": {},
+   "expected_value": "90.00",
+   "proposed": [
+    "hold_dispatch"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3589,
+   "seconds": 19.6
+  },
+  {
+   "id": "U5",
+   "case_type": "unconfirmed_order",
+   "title": "Contradictory records, low confidence",
+   "acceptable": {
+    "send_confirmation_reminder": [
+     "approval"
+    ],
+    "request_phone_confirmation": [
+     "human_only"
+    ]
+   },
+   "action": "send_confirmation_reminder",
+   "tier": "approval",
+   "params": {
+    "channel": "whatsapp"
+   },
+   "expected_value": "699.50",
+   "proposed": [
+    "hold_dispatch",
+    "send_confirmation_reminder",
+    "request_phone_confirmation"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4228,
+   "seconds": 23.7
+  },
+  {
+   "id": "U6",
+   "case_type": "unconfirmed_order",
+   "title": "8 days unconfirmed after reminder and call",
+   "acceptable": {
+    "recommend_cancellation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "auto"
+    ]
+   },
+   "action": "hold_dispatch",
+   "tier": "auto",
+   "params": {},
+   "expected_value": "130.00",
+   "proposed": [
+    "hold_dispatch",
+    "recommend_cancellation"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3833,
+   "seconds": 28.2
+  },
+  {
+   "id": "U7",
+   "case_type": "unconfirmed_order",
+   "title": "9,800 EGP, just under the large-order line",
+   "acceptable": {
+    "send_confirmation_reminder": [
+     "auto"
+    ],
+    "hold_dispatch": [
+     "auto"
+    ]
+   },
+   "action": "send_confirmation_reminder",
+   "tier": "auto",
+   "params": {
+    "channel": "whatsapp"
+   },
+   "expected_value": "1959.50",
+   "proposed": [
+    "hold_dispatch",
+    "send_confirmation_reminder",
+    "request_phone_confirmation"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4748,
+   "seconds": 42.0
+  },
+  {
+   "id": "U8",
+   "case_type": "unconfirmed_order",
+   "title": "Buyer with refusals but under the risk line",
+   "acceptable": {
+    "send_confirmation_reminder": [
+     "auto"
+    ],
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "auto"
+    ]
+   },
+   "action": "send_confirmation_reminder",
+   "tier": "auto",
+   "params": {
+    "channel": "whatsapp"
+   },
+   "expected_value": "479.50",
+   "proposed": [
+    "hold_dispatch",
+    "send_confirmation_reminder",
+    "request_phone_confirmation"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4242,
+   "seconds": 31.3
+  },
+  {
+   "id": "R1",
+   "case_type": "refusal_risk",
+   "title": "Risk 70, 3,500 EGP",
+   "acceptable": {
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "auto"
+    ],
+    "request_deposit": [
+     "approval"
+    ]
+   },
+   "action": "request_phone_confirmation",
+   "tier": "human_only",
+   "params": {},
+   "expected_value": "692.00",
+   "proposed": [
+    "request_phone_confirmation",
+    "hold_dispatch",
+    "request_deposit"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4332,
+   "seconds": 25.0
+  },
+  {
+   "id": "R2",
+   "case_type": "refusal_risk",
+   "title": "Risk 85, 22,000 EGP",
+   "acceptable": {
+    "request_deposit": [
+     "approval"
+    ],
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "approval"
+    ]
+   },
+   "action": "request_phone_confirmation",
+   "tier": "human_only",
+   "params": {},
+   "expected_value": "4392.00",
+   "proposed": [
+    "hold_dispatch",
+    "request_phone_confirmation",
+    "request_deposit"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4048,
+   "seconds": 19.6
+  },
+  {
+   "id": "R3",
+   "case_type": "refusal_risk",
+   "title": "Risk 58, new customer",
+   "acceptable": {
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "auto"
+    ]
+   },
+   "action": "request_phone_confirmation",
+   "tier": "human_only",
+   "params": {},
+   "expected_value": "292.00",
+   "proposed": [
+    "request_phone_confirmation",
+    "hold_dispatch"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4302,
+   "seconds": 33.6
+  },
+  {
+   "id": "R4",
+   "case_type": "refusal_risk",
+   "title": "Risk 62, already confirmed by WhatsApp",
+   "acceptable": {
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "auto"
+    ]
+   },
+   "action": "request_phone_confirmation",
+   "tier": "human_only",
+   "params": {},
+   "expected_value": "552.00",
+   "proposed": [
+    "request_phone_confirmation",
+    "hold_dispatch"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3278,
+   "seconds": 12.7
+  },
+  {
+   "id": "R5",
+   "case_type": "refusal_risk",
+   "title": "Risk 75, 16,000 EGP",
+   "acceptable": {
+    "request_deposit": [
+     "approval"
+    ],
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "approval"
+    ]
+   },
+   "action": "request_phone_confirmation",
+   "tier": "human_only",
+   "params": {},
+   "expected_value": "3192.00",
+   "proposed": [
+    "hold_dispatch",
+    "request_phone_confirmation",
+    "request_deposit"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4148,
+   "seconds": 21.6
+  },
+  {
+   "id": "R6",
+   "case_type": "refusal_risk",
+   "title": "Risk 90, call unanswered for 50h",
+   "acceptable": {
+    "recommend_cancellation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "auto"
+    ],
+    "request_deposit": [
+     "approval"
+    ]
+   },
+   "action": "request_deposit",
+   "tier": "approval",
+   "params": {
+    "percent": "10"
+   },
+   "expected_value": "600.00",
+   "proposed": [
+    "hold_dispatch",
+    "request_deposit",
+    "send_confirmation_reminder"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4898,
+   "seconds": 29.4
+  },
+  {
+   "id": "R7",
+   "case_type": "refusal_risk",
+   "title": "Risk 56, unsure investigation",
+   "acceptable": {
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "approval"
+    ]
+   },
+   "action": "request_phone_confirmation",
+   "tier": "human_only",
+   "params": {},
+   "expected_value": "432.00",
+   "proposed": [
+    "request_phone_confirmation",
+    "hold_dispatch"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4369,
+   "seconds": 31.0
+  },
+  {
+   "id": "R8",
+   "case_type": "refusal_risk",
+   "title": "Risk 66, 12,000 EGP",
+   "acceptable": {
+    "request_phone_confirmation": [
+     "human_only"
+    ],
+    "hold_dispatch": [
+     "approval"
+    ]
+   },
+   "action": "request_phone_confirmation",
+   "tier": "human_only",
+   "params": {},
+   "expected_value": "2392.00",
+   "proposed": [
+    "request_phone_confirmation",
+    "hold_dispatch"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3514,
+   "seconds": 23.8
+  },
+  {
+   "id": "S1",
+   "case_type": "stalled_fulfilment",
+   "title": "Confirmed 52h ago, not packed",
+   "acceptable": {
+    "nudge_vendor": [
+     "auto"
+    ]
+   },
+   "action": "nudge_vendor",
+   "tier": "auto",
+   "params": {},
+   "expected_value": "792.00",
+   "proposed": [
+    "nudge_vendor",
+    "notify_customer_of_delay"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3412,
+   "seconds": 45.1
+  },
+  {
+   "id": "S2",
+   "case_type": "stalled_fulfilment",
+   "title": "Vendor nudged 50h ago, still stuck",
+   "acceptable": {
+    "notify_customer_of_delay": [
+     "auto"
+    ]
+   },
+   "action": "notify_customer_of_delay",
+   "tier": "auto",
+   "params": {
+    "channel": "whatsapp",
+    "new_eta_days": "3"
+   },
+   "expected_value": "309.50",
+   "proposed": [
+    "notify_customer_of_delay",
+    "notify_customer_of_delay"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3796,
+   "seconds": 45.5
+  },
+  {
+   "id": "S3",
+   "case_type": "stalled_fulfilment",
+   "title": "Vendor nudged 10h ago",
+   "acceptable": {
+    "none": []
+   },
+   "action": null,
+   "tier": null,
+   "params": {},
+   "expected_value": "0",
+   "proposed": [
+    "notify_customer_of_delay"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 8807,
+   "seconds": 78.1
+  },
+  {
+   "id": "S4",
+   "case_type": "stalled_fulfilment",
+   "title": "Large order stalled",
+   "acceptable": {
+    "nudge_vendor": [
+     "auto"
+    ]
+   },
+   "action": "nudge_vendor",
+   "tier": "auto",
+   "params": {},
+   "expected_value": "5000.00",
+   "proposed": [
+    "nudge_vendor",
+    "notify_customer_of_delay"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3439,
+   "seconds": 16.0
+  },
+  {
+   "id": "S5",
+   "case_type": "stalled_fulfilment",
+   "title": "Stalled, unsure investigation",
+   "acceptable": {
+    "nudge_vendor": [
+     "approval"
+    ]
+   },
+   "action": "nudge_vendor",
+   "tier": "approval",
+   "params": {},
+   "expected_value": "360.00",
+   "proposed": [
+    "nudge_vendor",
+    "notify_customer_of_delay"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 6980,
+   "seconds": 38.0
+  },
+  {
+   "id": "L1",
+   "case_type": "late_shipment",
+   "title": "6 days on the road, promised 2",
+   "acceptable": {
+    "open_courier_ticket": [
+     "auto"
+    ],
+    "notify_customer_of_delay": [
+     "auto"
+    ]
+   },
+   "action": "open_courier_ticket",
+   "tier": "auto",
+   "params": {},
+   "expected_value": "178.50",
+   "proposed": [
+    "open_courier_ticket",
+    "notify_customer_of_delay",
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3757,
+   "seconds": 29.0
+  },
+  {
+   "id": "L2",
+   "case_type": "late_shipment",
+   "title": "Courier ticket open 30h",
+   "acceptable": {
+    "notify_customer_of_delay": [
+     "auto"
+    ],
+    "offer_discount": [
+     "auto"
+    ]
+   },
+   "action": "notify_customer_of_delay",
+   "tier": "auto",
+   "params": {
+    "channel": "whatsapp",
+    "new_eta_days": "2"
+   },
+   "expected_value": "299.50",
+   "proposed": [
+    "notify_customer_of_delay",
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4584,
+   "seconds": 39.0
+  },
+  {
+   "id": "L3",
+   "case_type": "late_shipment",
+   "title": "9,000 EGP, loyal customer, late",
+   "acceptable": {
+    "open_courier_ticket": [
+     "auto"
+    ],
+    "notify_customer_of_delay": [
+     "auto"
+    ],
+    "offer_discount": [
+     "approval"
+    ]
+   },
+   "action": "open_courier_ticket",
+   "tier": "auto",
+   "params": {},
+   "expected_value": "1350.00",
+   "proposed": [
+    "open_courier_ticket",
+    "notify_customer_of_delay",
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4430,
+   "seconds": 28.0
+  },
+  {
+   "id": "L4",
+   "case_type": "late_shipment",
+   "title": "Late, unsure investigation",
+   "acceptable": {
+    "open_courier_ticket": [
+     "approval"
+    ],
+    "notify_customer_of_delay": [
+     "approval"
+    ]
+   },
+   "action": "open_courier_ticket",
+   "tier": "approval",
+   "params": {},
+   "expected_value": "300.00",
+   "proposed": [
+    "notify_customer_of_delay",
+    "open_courier_ticket"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4156,
+   "seconds": 27.9
+  },
+  {
+   "id": "L5",
+   "case_type": "late_shipment",
+   "title": "15,000 EGP late",
+   "acceptable": {
+    "open_courier_ticket": [
+     "auto"
+    ],
+    "notify_customer_of_delay": [
+     "auto"
+    ]
+   },
+   "action": "open_courier_ticket",
+   "tier": "auto",
+   "params": {},
+   "expected_value": "2250.00",
+   "proposed": [
+    "open_courier_ticket",
+    "notify_customer_of_delay",
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 5436,
+   "seconds": 41.0
+  },
+  {
+   "id": "L6",
+   "case_type": "late_shipment",
+   "title": "Ticket and notice done, still late",
+   "acceptable": {
+    "offer_discount": [
+     "auto",
+     "approval"
+    ],
+    "none": []
+   },
+   "action": "offer_discount",
+   "tier": "auto",
+   "params": {
+    "percent": "5",
+    "valid_hours": "72"
+   },
+   "expected_value": "237.00",
+   "proposed": [
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3860,
+   "seconds": 27.8
+  },
+  {
+   "id": "A1",
+   "case_type": "abandoned_cart",
+   "title": "1,000 EGP cart idle 30h",
+   "acceptable": {
+    "send_cart_reminder": [
+     "auto"
+    ]
+   },
+   "action": "send_cart_reminder",
+   "tier": "auto",
+   "params": {
+    "channel": "whatsapp"
+   },
+   "expected_value": "69.50",
+   "proposed": [
+    "send_cart_reminder",
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4085,
+   "seconds": 35.5
+  },
+  {
+   "id": "A2",
+   "case_type": "abandoned_cart",
+   "title": "Reminder unanswered 30h, 1,000 EGP cart",
+   "acceptable": {
+    "offer_discount": [
+     "auto"
+    ]
+   },
+   "action": "offer_discount",
+   "tier": "auto",
+   "params": {
+    "percent": "8",
+    "valid_hours": "72"
+   },
+   "expected_value": "115.60",
+   "proposed": [
+    "offer_discount",
+    "offer_discount",
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4515,
+   "seconds": 33.3
+  },
+  {
+   "id": "A3",
+   "case_type": "abandoned_cart",
+   "title": "Reminder unanswered, 250 EGP cart",
+   "acceptable": {
+    "offer_discount": [
+     "approval"
+    ],
+    "none": []
+   },
+   "action": null,
+   "tier": null,
+   "params": {},
+   "expected_value": "0",
+   "proposed": [
+    "send_cart_reminder"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 7166,
+   "seconds": 62.2
+  },
+  {
+   "id": "A4",
+   "case_type": "abandoned_cart",
+   "title": "Reminder unanswered, 231K cart",
+   "acceptable": {
+    "offer_discount": [
+     "approval"
+    ],
+    "none": []
+   },
+   "action": "offer_discount",
+   "tier": "approval",
+   "params": {
+    "percent": "2",
+    "valid_hours": "72"
+   },
+   "expected_value": "29197.64",
+   "proposed": [
+    "offer_discount",
+    "offer_discount",
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4854,
+   "seconds": 44.7
+  },
+  {
+   "id": "A5",
+   "case_type": "abandoned_cart",
+   "title": "Reminder sent 5h ago",
+   "acceptable": {
+    "none": []
+   },
+   "action": null,
+   "tier": null,
+   "params": {},
+   "expected_value": "0",
+   "proposed": [
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 7013,
+   "seconds": 61.7
+  },
+  {
+   "id": "A6",
+   "case_type": "abandoned_cart",
+   "title": "Customer refused a delivery last month",
+   "acceptable": {
+    "none": []
+   },
+   "action": null,
+   "tier": null,
+   "params": {},
+   "expected_value": "0",
+   "proposed": [
+    "send_cart_reminder",
+    "send_cart_reminder"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4545,
+   "seconds": 38.4
+  },
+  {
+   "id": "A7",
+   "case_type": "abandoned_cart",
+   "title": "5,000 EGP cart idle 40h",
+   "acceptable": {
+    "send_cart_reminder": [
+     "auto"
+    ]
+   },
+   "action": "send_cart_reminder",
+   "tier": "auto",
+   "params": {
+    "channel": "whatsapp"
+   },
+   "expected_value": "349.50",
+   "proposed": [
+    "send_cart_reminder",
+    "offer_discount"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4199,
+   "seconds": 32.2
+  },
+  {
+   "id": "T1",
+   "case_type": "stale_return",
+   "title": "Damaged item, 250 EGP, received back",
+   "acceptable": {
+    "process_return": [
+     "approval"
+    ]
+   },
+   "action": "process_return",
+   "tier": "approval",
+   "params": {
+    "decision": "approve",
+    "refund_amount": "250.00"
+   },
+   "expected_value": "75.00",
+   "proposed": [
+    "process_return"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 2907,
+   "seconds": 19.3
+  },
+  {
+   "id": "T2",
+   "case_type": "stale_return",
+   "title": "Damaged item, 900 EGP",
+   "acceptable": {
+    "process_return": [
+     "human_only",
+     "approval"
+    ]
+   },
+   "action": "process_return",
+   "tier": "human_only",
+   "params": {
+    "decision": "approve",
+    "refund_amount": "900.00"
+   },
+   "expected_value": "270.00",
+   "proposed": [
+    "process_return"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3034,
+   "seconds": 19.2
+  },
+  {
+   "id": "T3",
+   "case_type": "stale_return",
+   "title": "Changed mind, not received yet",
+   "acceptable": {
+    "process_return": [
+     "approval",
+     "human_only"
+    ]
+   },
+   "action": "process_return",
+   "tier": "approval",
+   "params": {
+    "decision": "reject"
+   },
+   "expected_value": "450.00",
+   "proposed": [
+    "process_return"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 3399,
+   "seconds": 32.2
+  },
+  {
+   "id": "T4",
+   "case_type": "stale_return",
+   "title": "Outside the 14-day window",
+   "acceptable": {
+    "process_return": [
+     "approval",
+     "human_only"
+    ]
+   },
+   "action": "process_return",
+   "tier": "approval",
+   "params": {
+    "decision": "reject"
+   },
+   "expected_value": "240.00",
+   "proposed": [
+    "process_return"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 2613,
+   "seconds": 15.0
+  },
+  {
+   "id": "T5",
+   "case_type": "stale_return",
+   "title": "Return, unsure investigation",
+   "acceptable": {
+    "process_return": [
+     "approval",
+     "human_only"
+    ]
+   },
+   "action": "process_return",
+   "tier": "approval",
+   "params": {
+    "decision": "reject"
+   },
+   "expected_value": "180.00",
+   "proposed": [
+    "process_return",
+    "process_return"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 4938,
+   "seconds": 59.9
+  },
+  {
+   "id": "T6",
+   "case_type": "stale_return",
+   "title": "Refund exactly 300 EGP",
+   "acceptable": {
+    "process_return": [
+     "approval"
+    ]
+   },
+   "action": "process_return",
+   "tier": "approval",
+   "params": {
+    "decision": "approve",
+    "refund_amount": "300.00"
+   },
+   "expected_value": "90.00",
+   "proposed": [
+    "process_return"
+   ],
+   "action_ok": true,
+   "tier_ok": true,
+   "false_auto": false,
+   "unexpected_auto": false,
+   "error": null,
+   "tokens": 2599,
+   "seconds": 15.2
+  }
+ ]
+}

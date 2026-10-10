@@ -145,11 +145,14 @@ hand-set estimates (`decision/priors.py`); Phase 6 measures them instead.
   and only as a with/without pair; every score records whether its chances were
   measured or assumed, and each plan records which calibration it used.
 
-On the demo data, measuring changed real numbers: unconfirmed orders recover on
-their own far less often than assumed (15% vs 25%), recommending cancellation
-adds nothing over doing nothing, and a goodwill discount on late shipments works
-worse than assumed (73% vs 82%). **These are simulated outcomes**; they stand in
-until there are enough real ones.
+On the demo data (20,000 simulated outcomes), measuring changed the picture in
+places that matter: unconfirmed orders recover on their own less often than
+assumed (19% vs 25%); recommending cancellation adds nothing over doing nothing;
+a goodwill discount on late shipments works worse than assumed (77% vs 82%);
+and a phone call to a refusal-risk customer works better (81% vs 65%, 52
+trials). The dry run's total expected recovery moved only slightly (202.9K to
+205.6K EGP), because the errors partly cancel out. **These are simulated
+outcomes**; they stand in until there are enough real ones.
 
 ## Evals
 
@@ -169,16 +172,16 @@ right answer. The score is the action the executor would really take next.
 | Mode | What proposes | Accuracy | False-auto | Cost per case |
 |---|---|---|---|---|
 | `catalogue` (offline, in CI) | every catalogue action; the engine alone picks | 97.5% (39/40) | **0** | $0 |
-| `llm` (`glm-5.3` via CodeCraft) | the real Strategist | 25/25 before the provider went down (502) | **0** | about $0.01 |
+| `llm` (`glm-5.3` via CodeCraft) | the real Strategist | **100% (40/40)** | **0** | $0.006 (33 s) |
 
-Full report: [docs/evals.md](docs/evals.md). The one miss, A6, is a known gap:
-a customer who refused a delivery last month should get no discount (DISC-4),
-but the store doesn't record refusal dates, so only the Strategist, reading the
-policy, enforces it; the engine alone would offer the code. The live run will be
-completed and published as `docs/evals-llm.md`:
+Full reports: [docs/evals-llm.md](docs/evals-llm.md) and
+[docs/evals.md](docs/evals.md). The engine's one miss, A6, shows why both
+layers exist: a customer who refused a delivery last month should get no
+discount (DISC-4), but the store doesn't record refusal dates, so the engine
+alone would offer the code. The Strategist read the policy and chose to wait.
 
 ```bash
-uv run revenueops eval --mode llm --out ../docs/evals-llm.md
+uv run revenueops eval --mode llm --price 1.36 --out ../docs/evals-llm.md
 ```
 
 ## Known limits
@@ -229,7 +232,7 @@ run it locally).
 | | |
 |---|---|
 | ![A case: why this action](docs/screenshots/case.png) | ![Simulation](docs/screenshots/simulation.png) |
-| *A case page: the Strategist's read, each option's expected gain and oversight, the Arabic reminder, the audit trail* | *Simulation: a dry run, measured vs assumed success rates* |
+| *A refusal-risk case: the Strategist's read, measured chances per option, why a person must call first (COD-2), the evidence* | *Simulation: a dry run, measured vs assumed success rates* |
 | ![Approvals](docs/screenshots/approvals.png) | ![Cases](docs/screenshots/cases.png) |
 | *Approvals: what waits for a person* | *Cases, filtered by stage and type* |
 

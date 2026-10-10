@@ -8,11 +8,10 @@ agent service on 8000. Speak over the screen; times are targets.
 1. `docker compose up -d postgres`, StoreForge `npm run start:dev`, the agent
    service (`uv run uvicorn revenueops.main:app --port 8000`) and the dashboard
    (`npm run dev -- --port 3001`).
-2. Have at least one planned case of each kind ready:
-   - an **unconfirmed order** whose next step is an automatic reminder;
-   - a **large order or return** that lands in Approvals (a refund above 300 EGP,
-     or a discount above the DISC-3 limit);
-   - an action that already ran, so it can be undone.
+2. The demo data is ready (re-seeded on 10 October): 142 cases, two
+   refusal-risk orders waiting for a phone call, five reminders sent, three
+   reminders stopped for invalid phone numbers. Don't re-run `act` before
+   recording, or the queue will change.
 3. Set your operator name with the round button at the top right.
 4. Close other tabs, hide the bookmarks bar, zoom 100%.
 
@@ -22,7 +21,7 @@ agent service on 8000. Speak over the screen; times are targets.
 
 > "In Egypt most online orders are cash on delivery. Stores lose money when
 > customers refuse at the door, nobody confirms the order, shipments stall, or
-> carts are abandoned. This store has 2.2 million pounds at risk right now.
+> carts are abandoned. This store has 2.3 million pounds at risk right now.
 > RevenueOps finds those cases, decides what to do, does the safe things itself
 > and asks a person about the risky ones."
 
@@ -62,16 +61,25 @@ Point at the Arabic message in *Actions*.
 
 ## 1:35–2:05 A person in the loop
 
-**Screen:** Approvals.
+**Screen:** Approvals. Open the 83,886 EGP refusal-risk order waiting for a
+phone call.
 
-> "Anything risky waits here. When I approve, the action is scored again at
-> that moment: if the case has changed, or it now needs a person, it is
-> refused."
+> "Some things only a person should do. This customer's refusal risk is 61, so
+> the store's policy says a WhatsApp message isn't enough: someone has to call
+> before an 84,000-pound order ships. The service never pretends to make that
+> call; it waits for a person to report back. Anything that needs approval
+> waits here too, and is scored again at the moment it's approved."
 
-Approve one action, then open **Activity** and undo one.
+Then open **Activity**: three reminders show as failed because the customer's
+phone number wasn't valid.
+
+> "Code checks the recipient, not the model: these three were stopped because
+> the phone numbers on the orders were not real numbers."
+
+Still in **Activity**, undo one action.
 
 > "Everything is recorded with before and after snapshots, and anything that
-> can be undone, can be: here the dispatch hold is released in the store."
+> can be undone, can be."
 
 ## 2:05–2:35 Measuring instead of guessing
 
@@ -79,9 +87,10 @@ Approve one action, then open **Activity** and undo one.
 
 > "The chances the scorer uses started as estimates. A seeded simulation of
 > customer behaviour, with a random control group, measures how often each
-> action actually works, with confidence intervals. Switching to the measured
-> rates raised expected recovery in the dry run from 133 to 154 thousand
-> pounds. These outcomes are simulated, and the README says so."
+> action actually works, with confidence intervals. Some estimates were wrong:
+> calling a customer flagged as likely to refuse works 81% of the time, not
+> 65%, and recommending cancellation does nothing that waiting doesn't. These
+> outcomes are simulated, and the README says so."
 
 ## 2:35–3:00 Safety, measured
 
@@ -89,7 +98,8 @@ Approve one action, then open **Activity** and undo one.
 
 > "I test the decisions on 40 labelled cases. The number that has to stay at
 > zero is false-auto: a case where a person was needed but the system would
-> have acted alone. It is zero, and the decision engine has 100% branch
+> have acted alone. It is zero. With the real model proposing, all 40 decisions
+> were right, at under a cent per case, and the decision engine has 100% branch
 > coverage in CI. The agents run on any model behind one interface, and the
 > store sits behind an adapter, so the next step is a second platform."
 
