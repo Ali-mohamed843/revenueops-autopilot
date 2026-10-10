@@ -10,26 +10,34 @@ and carts that are abandoned. The first store is
 [StoreForge](https://github.com/Ali-mohamed843/ecommerce-saas); the design is
 platform-agnostic, with one adapter per store.
 
-> Status: Phase 6 — the full loop runs from a dashboard (detect, investigate,
+> Status: Phase 7 — the full loop runs from a dashboard (detect, investigate,
 > plan, act, approve, audit, undo), a dry run shows what would happen without
-> doing it, and a seeded outcome simulation measures each action's success rate
-> so scoring no longer rests on guesses. **Outcomes are simulated, not real.**
+> doing it, a seeded outcome simulation measures each action's success rate, and
+> 40 labelled scenarios check the decisions: **no case that needed a person ran
+> on its own**. **Outcomes are simulated, not real.**
+
+![The Overview](docs/screenshots/overview.png)
 
 ## How it fits together
 
-```
-StoreForge integration API ──HTTP──▶ adapters/storeforge ──▶ generic commerce models
-                                                                   │
-                         detectors (plain rules) ──▶ cases (Postgres, audit trail)
-                                                                   │
-                         Investigator agent (LLM + read-only tools) ──▶ report on the case
-                                                                   │
-                         Strategist agent (LLM, fixed action catalogue, policies) ──▶ proposals
-                                                                   │
-                         decision engine (plain code) ──▶ expected value + tier per action
-                                                                   │
-                         executor ──▶ auto: run now │ approval: queue │ human_only: a person does it
-                                   └─▶ store actions, outbox (Messenger agent), audit, rollback
+```mermaid
+flowchart TD
+    store[(StoreForge<br/>integration API)] -->|HTTP, x-api-key| adapter[adapters/storeforge]
+    adapter --> models[commerce models<br/>+ Capabilities]
+    models --> detect[detectors<br/>plain rules]
+    detect --> cases[(cases + audit trail<br/>Postgres)]
+    cases --> inv[Investigator agent<br/>LLM + read-only tools]
+    inv --> strat[Strategist agent<br/>fixed catalogue + policies]
+    strat --> engine{{decision engine<br/>plain code: expected value + tier}}
+    rates[(measured rates<br/>simulation)] -.-> engine
+    engine -->|auto| exec[executor]
+    engine -->|approval| queue[Approvals queue] -->|a person approves| exec
+    engine -->|human_only| person[a person does it<br/>and reports back]
+    exec --> actions[store actions<br/>dispatch hold, discount code]
+    exec --> msg[Messenger agent<br/>Egyptian Arabic] --> outbox[(outbox)]
+    exec --> audit[before/after snapshots<br/>rollback]
+    dash[Next.js dashboard] -->|server-side, admin key| api[FastAPI]
+    api --- cases
 ```
 
 The design rule: the language model investigates and proposes; deterministic
@@ -143,6 +151,48 @@ adds nothing over doing nothing, and a goodwill discount on late shipments works
 worse than assumed (73% vs 82%). **These are simulated outcomes**; they stand in
 until there are enough real ones.
 
+## Evals
+
+Forty labelled scenarios (`agent-service/src/revenueops/evals/scenarios.json`)
+cover every case type: a case after investigation (its value, signals, the
+investigator's report, what was already done) and the next actions a careful
+operator would accept, each with the oversight it must get. "Wait" can be the
+right answer. The score is the action the executor would really take next.
+
+`revenueops eval` reports:
+
+- **Decision accuracy:** the right action with the right oversight.
+- **False-auto:** a case where a person was needed but the next action would
+  have run on its own. It must be 0; the command exits with an error otherwise.
+- **Cost and time** per case, from the model's token counts.
+
+| Mode | What proposes | Accuracy | False-auto | Cost per case |
+|---|---|---|---|---|
+| `catalogue` (offline, in CI) | every catalogue action; the engine alone picks | 97.5% (39/40) | **0** | $0 |
+| `llm` (`glm-5.3` via CodeCraft) | the real Strategist | 25/25 before the provider went down (502) | **0** | about $0.01 |
+
+Full report: [docs/evals.md](docs/evals.md). The one miss, A6, is a known gap:
+a customer who refused a delivery last month should get no discount (DISC-4),
+but the store doesn't record refusal dates, so only the Strategist, reading the
+policy, enforces it; the engine alone would offer the code. The live run will be
+completed and published as `docs/evals-llm.md`:
+
+```bash
+uv run revenueops eval --mode llm --out ../docs/evals-llm.md
+```
+
+## Known limits
+
+- **Outcomes are simulated.** Measured rates come from a seeded model of customer
+  behaviour, not from real customers.
+- **Nothing is sent.** Messages stop in the outbox.
+- **One store so far.** The Shopify adapter (Phase 8) is the test of the
+  platform-agnostic claim.
+- **DISC-4 depends on the model** (see A6 above).
+- **No MCP server yet**: the tools are only used by the service's own agents.
+- The operator name is for the audit trail, not authentication; run the
+  dashboard locally.
+
 ## The dashboard
 
 `dashboard/` is a Next.js 15 app over the agent service API:
@@ -175,6 +225,13 @@ dashboard's server and actions go through server actions, so the admin key
 stays on the server. Decisions are recorded under the name you set with the
 round button at the top right (a name for the audit trail, not authentication;
 run it locally).
+
+| | |
+|---|---|
+| ![A case: why this action](docs/screenshots/case.png) | ![Simulation](docs/screenshots/simulation.png) |
+| *A case page: the Strategist's read, each option's expected gain and oversight, the Arabic reminder, the audit trail* | *Simulation: a dry run, measured vs assumed success rates* |
+| ![Approvals](docs/screenshots/approvals.png) | ![Cases](docs/screenshots/cases.png) |
+| *Approvals: what waits for a person* | *Cases, filtered by stage and type* |
 
 ## Run it locally
 
@@ -244,6 +301,7 @@ uv run ruff check .
 uv run mypy
 uv run lint-imports
 uv run pytest
+uv run revenueops eval --mode catalogue   # the 40 scenarios, offline; exits 1 on any false-auto
 ```
 
 CI runs the same checks on Ubuntu and Windows, and lints, type-checks, tests
@@ -265,11 +323,13 @@ agent-service/
     decision/       action catalogue, starting priors, scorer (pure code)
     executor/       handlers per action, the executor, executions and outbox tables
     simulation/     dry run, the simulated world, outcomes and calibration
+    evals/          40 labelled scenarios and the eval runner
     policies/       the store's rules as markdown
     pipeline.py     detect, then investigate
     cli.py, main.py command line and HTTP API
   migrations/       Alembic
   tests/
 dashboard/          Next.js 15 + Tailwind 4 dashboard (port 3001)
+docs/               eval report, demo script, screenshots
 docker-compose.yml  local Postgres on port 5433
 ```

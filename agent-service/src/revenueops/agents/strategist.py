@@ -7,7 +7,7 @@ probabilities or decide who may act: decision/score.py does that, deterministica
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from decimal import Decimal
 from typing import Any
 
@@ -63,7 +63,9 @@ def _param_line(p: Param) -> str:
     return f"      - {p.name} ({allowed}{'' if p.required else ', optional'}): {p.description}"
 
 
-def build_prompt(case: Case, actions: list[ActionSpec], policies: list[Policy]) -> str:
+def build_prompt(
+    case: Case, actions: list[ActionSpec], policies: list[Policy], done: Mapping[str, float] | None = None
+) -> str:
     report = (case.investigation or {}).get("report", {})
     lines = [
         f"Case type: {case.case_type}",
@@ -83,6 +85,10 @@ def build_prompt(case: Case, actions: list[ActionSpec], policies: list[Policy]) 
             lines.append(f"      (escalation: only after {step.after} has gone unanswered for {step.wait_hours:g}h)")
         lines.extend(_param_line(p) for p in a.params)
     lines.append("")
+    if done:
+        lines.append("Already carried out (do not propose these again):")
+        lines.extend(f"  - {a}, {h:.0f} hours ago" for a, h in sorted(done.items(), key=lambda kv: kv[1]))
+        lines.append("")
     lines.append("Policies:")
     for p in policies:
         lines.append(p.text)
@@ -123,17 +129,23 @@ def make_check(
     return check
 
 
-def plan(case: Case, actions: list[ActionSpec], policies: list[Policy], llm: LLMClient) -> AgentResult[Strategy]:
+def plan(
+    case: Case,
+    actions: list[ActionSpec],
+    policies: list[Policy],
+    llm: LLMClient,
+    done: Mapping[str, float] | None = None,
+) -> AgentResult[Strategy]:
     return run_agent(
         llm,
         system=SYSTEM_PROMPT,
-        prompt=build_prompt(case, actions, policies),
+        prompt=build_prompt(case, actions, policies, done),
         tools=[],
         submit=Submit(
             name="submit_strategy",
             description="Submit your proposed actions. Call exactly once.",
             schema=Strategy,
-            check=make_check(case.case_type, actions, policies, case.value_at_risk),
+            check=make_check(case.case_type, actions, policies, case.value_at_risk, frozenset(done or {})),
         ),
         max_turns=4,
     )

@@ -6,6 +6,7 @@ import argparse
 import sys
 import uuid
 from collections import Counter
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
@@ -199,6 +200,41 @@ def cmd_simulate(what: str, episodes: int, seed: int) -> int:
     return 0
 
 
+def cmd_eval(mode: str, only: list[str] | None, price: float, out: str | None, measured: bool) -> int:
+    import json
+    from pathlib import Path
+
+    from revenueops.evals.run import evaluate, markdown
+
+    settings = get_settings()
+    llm = build_llm(settings) if mode == "llm" else None
+    rates, source = None, "the starting estimates"
+    if measured:
+        with session_factory(get_engine())() as session:
+            rates, _ = sim.active_rates(session)
+        source = rates.source if rates else "the starting estimates (no calibration yet)"
+
+    def show(r: Any) -> None:
+        mark = "FALSE-AUTO" if r.false_auto else "ok" if r.correct else "error" if r.error else "miss"
+        print(f"  {r.id:<4} {mark:<10} {r.action or 'wait':<28} {r.tier or '':<11} {r.title}", flush=True)
+
+    print(f"Evaluating in {mode} mode{f' with {llm.model}' if llm else ''}, scoring with {source}")
+    report = evaluate(mode, llm, rates, only, price, on_result=show)
+    s = report.summary()
+    print(
+        f"Accuracy {s['accuracy']}, false-auto {s['false_auto']}, unexpected auto {s['unexpected_auto']}, "
+        f"errors {s['errors']}, cost ${s['cost_usd']} (${s['cost_per_case_usd']}/case), {s['seconds_per_case']} s/case"
+    )
+    if out:
+        Path(out).write_text(markdown(report, source), encoding="utf-8")
+        Path(out).with_suffix(".json").write_text(
+            json.dumps({"summary": s, "results": [r.__dict__ for r in report.results]}, indent=1, default=str),
+            encoding="utf-8",
+        )
+        print(f"Wrote {out} and its .json")
+    return 1 if s["false_auto"] else 0
+
+
 def _get_case(session: Session, case_id: str) -> Case:
     case = session.get(Case, uuid.UUID(case_id))
     if case is None:
@@ -231,6 +267,12 @@ def main(argv: list[str] | None = None) -> int:
     act.add_argument("--limit", type=int, default=10, help="How many cases (most urgent first)")
     act.add_argument("--case", dest="case_id", help="Act on one case by id")
     sub.add_parser("queue", help="List actions waiting for approval or for a person")
+    ev = sub.add_parser("eval", help="Run the labelled scenarios and report accuracy and false-auto")
+    ev.add_argument("--mode", choices=["catalogue", "llm"], default="catalogue")
+    ev.add_argument("--only", nargs="*", help="Scenario ids, e.g. U1 R2")
+    ev.add_argument("--price", type=float, default=1.36, help="Model price in USD per million tokens")
+    ev.add_argument("--out", help="Write the markdown report here (and a .json beside it)")
+    ev.add_argument("--measured", action="store_true", help="Score with the active calibration")
     simulate = sub.add_parser("simulate", help="Dry run, simulated outcomes, or calibration")
     simulate.add_argument("what", choices=["dry-run", "outcomes", "calibrate"])
     simulate.add_argument("--episodes", type=int, default=5000, help="For outcomes: how many simulated cases")
@@ -259,6 +301,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_act(args.limit, args.case_id)
         if args.command == "queue":
             return cmd_queue()
+        if args.command == "eval":
+            return cmd_eval(args.mode, args.only, args.price, args.out, args.measured)
         if args.command == "simulate":
             return cmd_simulate(args.what, args.episodes, args.seed)
         if args.command in ("approve", "reject", "complete", "rollback"):

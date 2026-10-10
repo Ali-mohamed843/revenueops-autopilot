@@ -25,6 +25,8 @@ jobs:
       - run: uv run pytest -v
       # The decision engine decides what may run without a human: every branch must be tested.
       - run: uv run pytest -q tests/test_decision.py tests/test_policies.py tests/test_rates.py --cov=revenueops.decision --cov=revenueops.policies --cov-branch --cov-fail-under=100
+      # The 40 labelled scenarios, decided by the engine alone: fails if anything needing a person would run alone.
+      - run: uv run revenueops eval --mode catalogue
 
   dashboard:
     runs-on: ubuntu-latest

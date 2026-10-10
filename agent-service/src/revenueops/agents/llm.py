@@ -24,6 +24,8 @@ from revenueops.config import Settings
 CLAUDE_MAX_TOKENS = 16_000
 MAX_RETRIES = 4  # the SDK backs off between tries; free models are often briefly rate-limited
 OTHER_MODEL_MAX_TOKENS = 8_000  # most non-Claude models cap output lower than Claude does
+REQUEST_TIMEOUT = 180  # seconds to wait for one answer; reasoning models can think for a while
+CALL_BUDGET = 360  # seconds for one call, retries included, so a provider that stops answering can't hang a run
 
 
 class LLMError(Exception):
@@ -142,13 +144,15 @@ class OpenAICompatibleLLM:
         *,
         transport: httpx.BaseTransport | None = None,
         sleep: Callable[[float], None] = time.sleep,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self.model = model
         self._sleep = sleep
+        self._clock = clock
         self._http = httpx.Client(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key}"},
-            timeout=180,  # reasoning models can think for a while
+            timeout=REQUEST_TIMEOUT,
             transport=transport,
         )
 
@@ -182,26 +186,34 @@ class OpenAICompatibleLLM:
         )
 
     def _post(self, body: dict[str, Any]) -> dict[str, Any]:
-        """POST with backoff on rate limits, server errors and network errors, like the Anthropic SDK."""
+        """POST with backoff on rate limits, server errors and network errors, like the Anthropic SDK.
+
+        Retries stop at MAX_RETRIES or when the next try wouldn't fit in CALL_BUDGET, whichever is first.
+        """
+        deadline = self._clock() + CALL_BUDGET
+        error: LLMError
         for attempt in range(MAX_RETRIES + 1):
-            last_try = attempt == MAX_RETRIES
+            timeout = min(REQUEST_TIMEOUT, deadline - self._clock())
             try:
-                response = self._http.post("/chat/completions", json=body)
+                response = self._http.post("/chat/completions", json=body, timeout=timeout)
             except httpx.HTTPError as e:
-                if last_try:
-                    raise LLMError(f"{self.model} is unreachable: {e}") from e
+                error = LLMError(f"{self.model} is unreachable: {type(e).__name__} {e}".strip())
             else:
                 status = response.status_code
                 if status < 400:
                     result: dict[str, Any] = response.json()
                     return result
-                retryable = status == 429 or status >= 500
-                if not retryable or last_try:
-                    reason = f"HTTP {status}: {_openai_error(response)}"
-                    if status == 429:
-                        raise RateLimited(f"{self.model} is rate-limited: {reason}")
-                    raise LLMError(f"{self.model} failed: {reason}")
-            self._sleep(min(2**attempt, 30))
+                reason = f"HTTP {status}: {_openai_error(response)}"
+                if status == 429:
+                    error = RateLimited(f"{self.model} is rate-limited: {reason}")
+                else:
+                    error = LLMError(f"{self.model} failed: {reason}")
+                    if status < 500:
+                        raise error
+            pause = min(2**attempt, 30)
+            if attempt == MAX_RETRIES or self._clock() + pause >= deadline:
+                raise error
+            self._sleep(pause)
         raise AssertionError("unreachable")
 
 

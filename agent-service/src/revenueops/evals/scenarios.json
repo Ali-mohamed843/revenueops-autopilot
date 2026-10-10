@@ -1,0 +1,1716 @@
+[
+ {
+  "id": "U1",
+  "title": "Unconfirmed for 30h, reliable buyer",
+  "case_type": "unconfirmed_order",
+  "subject_type": "order",
+  "value": "1200.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 30,
+   "risk_score": 6,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": true,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Small COD order pending 30h; the WhatsApp confirmation expired with no reminder.",
+   "likely_cause": "The buyer missed the confirmation message.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "1,200 EGP, pending since checkout",
+     "source": "order"
+    },
+    {
+     "fact": "WhatsApp confirmation expired, 0 reminders",
+     "source": "confirmations"
+    },
+    {
+     "fact": "9 deliveries, 0 refusals",
+     "source": "customer_profile"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [
+    "Reliable repeat buyer"
+   ],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "send_confirmation_reminder": [
+    "auto"
+   ]
+  },
+  "why": "A reminder is harmless and first in the ladder (COD-6)."
+ },
+ {
+  "id": "U2",
+  "title": "Unconfirmed 41K order, very reliable buyer",
+  "case_type": "unconfirmed_order",
+  "subject_type": "order",
+  "value": "41084.30",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 155,
+   "risk_score": 0,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": true,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Large COD order stuck 155h after the confirmation expired with no reminder.",
+   "likely_cause": "Confirmation workflow stalled; buyer is reliable.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "41,084.30 EGP",
+     "source": "order"
+    },
+    {
+     "fact": "13 deliveries, 0 refusals, risk 0",
+     "source": "customer_profile"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "send_confirmation_reminder": [
+    "auto"
+   ],
+   "hold_dispatch": [
+    "approval"
+   ]
+  },
+  "why": "Messages stay automatic on large orders; holding a 41K order is an order change and gets a human look."
+ },
+ {
+  "id": "U3",
+  "title": "Reminder unanswered for 30h",
+  "case_type": "unconfirmed_order",
+  "subject_type": "order",
+  "value": "2000.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 60,
+   "risk_score": 20,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": true,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Reminder sent 30h ago, no reply. Order still pending.",
+   "likely_cause": "Buyer not reading WhatsApp.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Reminder sent, unanswered for 30h",
+     "source": "confirmations"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "send_confirmation_reminder": 30
+  },
+  "acceptable": {
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "auto"
+   ]
+  },
+  "why": "Next step is a call (COD-6); holding dispatch meanwhile is reversible."
+ },
+ {
+  "id": "U4",
+  "title": "Reminder sent only 6h ago",
+  "case_type": "unconfirmed_order",
+  "subject_type": "order",
+  "value": "1800.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 36,
+   "risk_score": 15,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": true,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Reminder sent 6h ago; too early to escalate.",
+   "likely_cause": "Buyer has not had time to answer.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Reminder sent 6h ago",
+     "source": "confirmations"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "send_confirmation_reminder": 6
+  },
+  "acceptable": {
+   "none": [],
+   "hold_dispatch": [
+    "auto"
+   ]
+  },
+  "why": "The call waits 24h after the reminder; waiting or a reversible hold are both fine."
+ },
+ {
+  "id": "U5",
+  "title": "Contradictory records, low confidence",
+  "case_type": "unconfirmed_order",
+  "subject_type": "order",
+  "value": "3500.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 40,
+   "risk_score": 30,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": true,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Order shows pending, but notes suggest the buyer confirmed by phone; records disagree.",
+   "likely_cause": "Unclear: possibly confirmed outside the system.",
+   "confidence": 0.4,
+   "evidence": [
+    {
+     "fact": "Pending since checkout",
+     "source": "order"
+    },
+    {
+     "fact": "Admin note mentions a phone confirmation",
+     "source": "order"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": [
+    "Whether the buyer already confirmed by phone"
+   ]
+  },
+  "done": {},
+  "acceptable": {
+   "send_confirmation_reminder": [
+    "approval"
+   ],
+   "request_phone_confirmation": [
+    "human_only"
+   ]
+  },
+  "why": "Below 0.6 confidence nothing runs alone."
+ },
+ {
+  "id": "U6",
+  "title": "8 days unconfirmed after reminder and call",
+  "case_type": "unconfirmed_order",
+  "subject_type": "order",
+  "value": "2600.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 200,
+   "risk_score": 25,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": true,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Reminder and phone call both unanswered; pending 8 days.",
+   "likely_cause": "Buyer has abandoned the order.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Reminder unanswered 6 days",
+     "source": "confirmations"
+    },
+    {
+     "fact": "Call attempt logged 3 days ago, no answer",
+     "source": "order"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "send_confirmation_reminder": 150,
+   "request_phone_confirmation": 72
+  },
+  "acceptable": {
+   "recommend_cancellation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "auto"
+   ]
+  },
+  "why": "COD-4: after two unanswered contacts and 7 days, recommend cancelling; staff decide. A hold enforces COD-1 and can be undone."
+ },
+ {
+  "id": "U7",
+  "title": "9,800 EGP, just under the large-order line",
+  "case_type": "unconfirmed_order",
+  "subject_type": "order",
+  "value": "9800.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 28,
+   "risk_score": 10,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": true,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Pending 28h, confirmation expired.",
+   "likely_cause": "Missed message.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "9,800 EGP",
+     "source": "order"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "send_confirmation_reminder": [
+    "auto"
+   ],
+   "hold_dispatch": [
+    "auto"
+   ]
+  },
+  "why": "Under 10,000 EGP a reversible hold may also run alone."
+ },
+ {
+  "id": "U8",
+  "title": "Buyer with refusals but under the risk line",
+  "case_type": "unconfirmed_order",
+  "subject_type": "order",
+  "value": "2400.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 30,
+   "risk_score": 48,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": true,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Buyer refused 2 of 6 deliveries; risk 48, below the phone-confirmation line.",
+   "likely_cause": "Hesitant buyer.",
+   "confidence": 0.75,
+   "evidence": [
+    {
+     "fact": "2 refusals, 4 deliveries",
+     "source": "customer_profile"
+    }
+   ],
+   "risk_factors": [
+    "Two past refusals"
+   ],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "send_confirmation_reminder": [
+    "auto"
+   ],
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "auto"
+   ]
+  },
+  "why": "Below 55 a message is allowed first; a call or a hold are also sensible."
+ },
+ {
+  "id": "R1",
+  "title": "Risk 70, 3,500 EGP",
+  "case_type": "refusal_risk",
+  "subject_type": "order",
+  "value": "3500.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 5,
+   "risk_score": 70,
+   "shipment_status": "not_dispatched",
+   "governorate": "Giza",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": false,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Risky COD order not yet shipped; customer refused twice this year.",
+   "likely_cause": "Likely to refuse at the door.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "2 refusals in 2026",
+     "source": "customer_profile"
+    },
+    {
+     "fact": "Risk score 70",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "auto"
+   ],
+   "request_deposit": [
+    "approval"
+   ]
+  },
+  "why": "COD-2: a call before dispatch; a hold is reversible; a deposit is allowed at risk 70 with approval."
+ },
+ {
+  "id": "R2",
+  "title": "Risk 85, 22,000 EGP",
+  "case_type": "refusal_risk",
+  "subject_type": "order",
+  "value": "22000.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 4,
+   "risk_score": 85,
+   "shipment_status": "not_dispatched",
+   "governorate": "Giza",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": false,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "High-value COD order from a customer with three refusals.",
+   "likely_cause": "Very likely refusal.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "3 refusals, 5 deliveries",
+     "source": "customer_profile"
+    },
+    {
+     "fact": "22,000 EGP",
+     "source": "order"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "request_deposit": [
+    "approval"
+   ],
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "approval"
+   ]
+  },
+  "why": "Everything on a 22K risky order needs a person."
+ },
+ {
+  "id": "R3",
+  "title": "Risk 58, new customer",
+  "case_type": "refusal_risk",
+  "subject_type": "order",
+  "value": "1500.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 3,
+   "risk_score": 58,
+   "shipment_status": "not_dispatched",
+   "governorate": "Alexandria",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": false,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "First order from a new customer in an area with high refusals.",
+   "likely_cause": "Unknown customer.",
+   "confidence": 0.7,
+   "evidence": [
+    {
+     "fact": "No history",
+     "source": "customer_profile"
+    },
+    {
+     "fact": "Risk score 58",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "auto"
+   ]
+  },
+  "why": "COD-2 applies from 55: a message alone isn't enough."
+ },
+ {
+  "id": "R4",
+  "title": "Risk 62, already confirmed by WhatsApp",
+  "case_type": "refusal_risk",
+  "subject_type": "order",
+  "value": "2800.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 2,
+   "risk_score": 62,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": false,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Customer confirmed by WhatsApp, but risk 62 still needs a call (COD-2).",
+   "likely_cause": "Confirmation by message only.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Confirmed by WhatsApp",
+     "source": "confirmations"
+    },
+    {
+     "fact": "Risk 62",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "auto"
+   ]
+  },
+  "why": "A message confirmation doesn't satisfy COD-2."
+ },
+ {
+  "id": "R5",
+  "title": "Risk 75, 16,000 EGP",
+  "case_type": "refusal_risk",
+  "subject_type": "order",
+  "value": "16000.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 6,
+   "risk_score": 75,
+   "shipment_status": "not_dispatched",
+   "governorate": "Giza",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": false,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Large COD order, two refusals last quarter.",
+   "likely_cause": "Likely refusal.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "2 refusals",
+     "source": "customer_profile"
+    },
+    {
+     "fact": "16,000 EGP",
+     "source": "order"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "request_deposit": [
+    "approval"
+   ],
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "approval"
+   ]
+  },
+  "why": "COD-3 allows a deposit (risk ≥ 70, > 15,000 EGP) with approval."
+ },
+ {
+  "id": "R6",
+  "title": "Risk 90, call unanswered for 50h",
+  "case_type": "refusal_risk",
+  "subject_type": "order",
+  "value": "4000.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 60,
+   "risk_score": 90,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": false,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Called 50h ago, no answer; order still not shipped.",
+   "likely_cause": "Customer avoiding contact.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Call attempt 50h ago unanswered",
+     "source": "order"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "request_phone_confirmation": 50
+  },
+  "acceptable": {
+   "recommend_cancellation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "auto"
+   ],
+   "request_deposit": [
+    "approval"
+   ]
+  },
+  "why": "After a failed call, cancellation is the staff's decision; holding is reversible; COD-3 allows a deposit at risk 90, with approval."
+ },
+ {
+  "id": "R7",
+  "title": "Risk 56, unsure investigation",
+  "case_type": "refusal_risk",
+  "subject_type": "order",
+  "value": "2200.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 4,
+   "risk_score": 56,
+   "shipment_status": "not_dispatched",
+   "governorate": "Cairo",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": false,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Profile data incomplete; risk 56 may be stale.",
+   "likely_cause": "Unclear.",
+   "confidence": 0.5,
+   "evidence": [
+    {
+     "fact": "Risk 56",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": [
+    "Recent delivery history"
+   ]
+  },
+  "done": {},
+  "acceptable": {
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "approval"
+   ]
+  },
+  "why": "Low confidence: nothing runs alone."
+ },
+ {
+  "id": "R8",
+  "title": "Risk 66, 12,000 EGP",
+  "case_type": "refusal_risk",
+  "subject_type": "order",
+  "value": "12000.00",
+  "signals": {
+   "order_status": "pending",
+   "hours_since_update": 5,
+   "risk_score": 66,
+   "shipment_status": "not_dispatched",
+   "governorate": "Qalyubia",
+   "payment_method": "cash_on_delivery",
+   "confirmation": {
+    "status": "pending",
+    "expired": false,
+    "reminders_sent": 0
+   }
+  },
+  "investigation": {
+   "summary": "Mid-high risk on a large order.",
+   "likely_cause": "Possible refusal.",
+   "confidence": 0.75,
+   "evidence": [
+    {
+     "fact": "12,000 EGP",
+     "source": "order"
+    },
+    {
+     "fact": "Risk 66",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "request_phone_confirmation": [
+    "human_only"
+   ],
+   "hold_dispatch": [
+    "approval"
+   ]
+  },
+  "why": "Over 10,000 EGP a hold needs a human look; the call is a person's task."
+ },
+ {
+  "id": "S1",
+  "title": "Confirmed 52h ago, not packed",
+  "case_type": "stalled_fulfilment",
+  "subject_type": "order",
+  "value": "3960.00",
+  "signals": {
+   "order_status": "confirmed",
+   "hours_since_update": 52,
+   "risk_score": 10,
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Vendor hasn't packed a confirmed order for 52h.",
+   "likely_cause": "Vendor backlog.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "Confirmed 52h ago",
+     "source": "status_history"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "nudge_vendor": [
+    "auto"
+   ]
+  },
+  "why": "FUL-1: contact the vendor after 48h."
+ },
+ {
+  "id": "S2",
+  "title": "Vendor nudged 50h ago, still stuck",
+  "case_type": "stalled_fulfilment",
+  "subject_type": "order",
+  "value": "3100.00",
+  "signals": {
+   "order_status": "confirmed",
+   "hours_since_update": 100,
+   "risk_score": 10,
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "100h without shipping, vendor already nudged.",
+   "likely_cause": "Vendor unresponsive.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Confirmed 100h ago",
+     "source": "status_history"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "nudge_vendor": 50
+  },
+  "acceptable": {
+   "notify_customer_of_delay": [
+    "auto"
+   ]
+  },
+  "why": "FUL-2: tell the customer 48h after nudging the vendor."
+ },
+ {
+  "id": "S3",
+  "title": "Vendor nudged 10h ago",
+  "case_type": "stalled_fulfilment",
+  "subject_type": "order",
+  "value": "2900.00",
+  "signals": {
+   "order_status": "confirmed",
+   "hours_since_update": 62,
+   "risk_score": 10,
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Vendor was nudged 10h ago.",
+   "likely_cause": "Awaiting vendor.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Confirmed 62h ago",
+     "source": "status_history"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "nudge_vendor": 10
+  },
+  "acceptable": {
+   "none": []
+  },
+  "why": "Give the vendor time before telling the customer."
+ },
+ {
+  "id": "S4",
+  "title": "Large order stalled",
+  "case_type": "stalled_fulfilment",
+  "subject_type": "order",
+  "value": "25000.00",
+  "signals": {
+   "order_status": "confirmed",
+   "hours_since_update": 55,
+   "risk_score": 10,
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Large confirmed order not shipped for 55h.",
+   "likely_cause": "Vendor backlog.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "25,000 EGP",
+     "source": "order"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "nudge_vendor": [
+    "auto"
+   ]
+  },
+  "why": "A nudge to the vendor is harmless at any value."
+ },
+ {
+  "id": "S5",
+  "title": "Stalled, unsure investigation",
+  "case_type": "stalled_fulfilment",
+  "subject_type": "order",
+  "value": "1800.00",
+  "signals": {
+   "order_status": "confirmed",
+   "hours_since_update": 50,
+   "risk_score": 10,
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Status unclear: shipment record may be missing.",
+   "likely_cause": "Unclear.",
+   "confidence": 0.45,
+   "evidence": [
+    {
+     "fact": "Confirmed",
+     "source": "order"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": [
+    "Whether it was shipped outside the system"
+   ]
+  },
+  "done": {},
+  "acceptable": {
+   "nudge_vendor": [
+    "approval"
+   ]
+  },
+  "why": "Low confidence: a person checks first."
+ },
+ {
+  "id": "L1",
+  "title": "6 days on the road, promised 2",
+  "case_type": "late_shipment",
+  "subject_type": "order",
+  "value": "1190.00",
+  "signals": {
+   "order_status": "shipped",
+   "courier": "bosta",
+   "days_since_dispatch": 6,
+   "promised_days": 2,
+   "attempt_count": 0,
+   "shipment_status": "in_transit",
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Parcel stuck at a hub 4 days past the promise.",
+   "likely_cause": "Courier delay.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "In transit 6 days",
+     "source": "shipment"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "open_courier_ticket": [
+    "auto"
+   ],
+   "notify_customer_of_delay": [
+    "auto"
+   ]
+  },
+  "why": "FUL-3 and FUL-4: open a ticket and tell the customer."
+ },
+ {
+  "id": "L2",
+  "title": "Courier ticket open 30h",
+  "case_type": "late_shipment",
+  "subject_type": "order",
+  "value": "3000.00",
+  "signals": {
+   "order_status": "shipped",
+   "courier": "bosta",
+   "days_since_dispatch": 8,
+   "promised_days": 2,
+   "attempt_count": 0,
+   "shipment_status": "in_transit",
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Ticket open 30h; still not delivered.",
+   "likely_cause": "Courier delay.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "In transit 8 days",
+     "source": "shipment"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "open_courier_ticket": 30
+  },
+  "acceptable": {
+   "notify_customer_of_delay": [
+    "auto"
+   ],
+   "offer_discount": [
+    "auto"
+   ]
+  },
+  "why": "Tell the customer; a small goodwill code (≤ 5%, ≤ 250 EGP) may run alone."
+ },
+ {
+  "id": "L3",
+  "title": "9,000 EGP, loyal customer, late",
+  "case_type": "late_shipment",
+  "subject_type": "order",
+  "value": "9000.00",
+  "signals": {
+   "order_status": "shipped",
+   "courier": "bosta",
+   "days_since_dispatch": 5,
+   "promised_days": 2,
+   "attempt_count": 0,
+   "shipment_status": "in_transit",
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Loyal customer (11 orders) waiting 3 days past the promise.",
+   "likely_cause": "Courier delay.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "11 deliveries",
+     "source": "customer_profile"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "open_courier_ticket": [
+    "auto"
+   ],
+   "notify_customer_of_delay": [
+    "auto"
+   ],
+   "offer_discount": [
+    "approval"
+   ]
+  },
+  "why": "A goodwill code here is worth more than 250 EGP: approval (DISC-3)."
+ },
+ {
+  "id": "L4",
+  "title": "Late, unsure investigation",
+  "case_type": "late_shipment",
+  "subject_type": "order",
+  "value": "2000.00",
+  "signals": {
+   "order_status": "shipped",
+   "courier": "bosta",
+   "days_since_dispatch": 5,
+   "promised_days": 2,
+   "attempt_count": 0,
+   "shipment_status": "in_transit",
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Tracking data may be stale.",
+   "likely_cause": "Unclear.",
+   "confidence": 0.5,
+   "evidence": [
+    {
+     "fact": "Last scan 5 days ago",
+     "source": "shipment"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "open_courier_ticket": [
+    "approval"
+   ],
+   "notify_customer_of_delay": [
+    "approval"
+   ]
+  },
+  "why": "Low confidence: a person checks first."
+ },
+ {
+  "id": "L5",
+  "title": "15,000 EGP late",
+  "case_type": "late_shipment",
+  "subject_type": "order",
+  "value": "15000.00",
+  "signals": {
+   "order_status": "shipped",
+   "courier": "bosta",
+   "days_since_dispatch": 6,
+   "promised_days": 2,
+   "attempt_count": 0,
+   "shipment_status": "in_transit",
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "Large parcel 4 days past the promise.",
+   "likely_cause": "Courier delay.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "In transit 6 days",
+     "source": "shipment"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "open_courier_ticket": [
+    "auto"
+   ],
+   "notify_customer_of_delay": [
+    "auto"
+   ]
+  },
+  "why": "A ticket and a message change nothing in the order."
+ },
+ {
+  "id": "L6",
+  "title": "Ticket and notice done, still late",
+  "case_type": "late_shipment",
+  "subject_type": "order",
+  "value": "3000.00",
+  "signals": {
+   "order_status": "shipped",
+   "courier": "bosta",
+   "days_since_dispatch": 10,
+   "promised_days": 2,
+   "attempt_count": 0,
+   "shipment_status": "in_transit",
+   "governorate": "Cairo"
+  },
+  "investigation": {
+   "summary": "10 days on the road; customer informed.",
+   "likely_cause": "Courier delay.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "In transit 10 days",
+     "source": "shipment"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "open_courier_ticket": 72,
+   "notify_customer_of_delay": 48
+  },
+  "acceptable": {
+   "offer_discount": [
+    "auto",
+    "approval"
+   ],
+   "none": []
+  },
+  "why": "A goodwill code (automatic up to 5% and 250 EGP, otherwise approval: DISC-3), or waiting on the courier."
+ },
+ {
+  "id": "A1",
+  "title": "1,000 EGP cart idle 30h",
+  "case_type": "abandoned_cart",
+  "subject_type": "cart",
+  "value": "1000.00",
+  "signals": {
+   "idle_hours": 30,
+   "customer_key": "01099000002",
+   "customer_name": "Test Buyer",
+   "has_email": true,
+   "has_phone": true,
+   "lines": [
+    {
+     "product_name": "Mug",
+     "quantity": 2,
+     "price_when_added": "250.00"
+    }
+   ]
+  },
+  "investigation": {
+   "summary": "Cart left 30h after adding items; repeat customer.",
+   "likely_cause": "Distracted shopper.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Idle 30h",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "send_cart_reminder": [
+    "auto"
+   ]
+  },
+  "why": "A plain reminder first (DISC-5)."
+ },
+ {
+  "id": "A2",
+  "title": "Reminder unanswered 30h, 1,000 EGP cart",
+  "case_type": "abandoned_cart",
+  "subject_type": "cart",
+  "value": "1000.00",
+  "signals": {
+   "idle_hours": 60,
+   "customer_key": "01099000002",
+   "customer_name": "Test Buyer",
+   "has_email": true,
+   "has_phone": true,
+   "lines": [
+    {
+     "product_name": "Mug",
+     "quantity": 2,
+     "price_when_added": "250.00"
+    }
+   ]
+  },
+  "investigation": {
+   "summary": "Reminder unanswered for 30h.",
+   "likely_cause": "Price hesitation.",
+   "confidence": 0.75,
+   "evidence": [
+    {
+     "fact": "Idle 60h",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "send_cart_reminder": 30
+  },
+  "acceptable": {
+   "offer_discount": [
+    "auto"
+   ]
+  },
+  "why": "DISC-1: up to 10% off automatically for carts of 300 EGP or more."
+ },
+ {
+  "id": "A3",
+  "title": "Reminder unanswered, 250 EGP cart",
+  "case_type": "abandoned_cart",
+  "subject_type": "cart",
+  "value": "250.00",
+  "signals": {
+   "idle_hours": 60,
+   "customer_key": "01099000002",
+   "customer_name": "Test Buyer",
+   "has_email": true,
+   "has_phone": true,
+   "lines": [
+    {
+     "product_name": "Mug",
+     "quantity": 2,
+     "price_when_added": "250.00"
+    }
+   ]
+  },
+  "investigation": {
+   "summary": "Small cart, reminder unanswered.",
+   "likely_cause": "Low intent.",
+   "confidence": 0.75,
+   "evidence": [
+    {
+     "fact": "Idle 60h",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "send_cart_reminder": 30
+  },
+  "acceptable": {
+   "offer_discount": [
+    "approval"
+   ],
+   "none": []
+  },
+  "why": "Under 300 EGP there's no automatic discount (DISC-1)."
+ },
+ {
+  "id": "A4",
+  "title": "Reminder unanswered, 231K cart",
+  "case_type": "abandoned_cart",
+  "subject_type": "cart",
+  "value": "230994.00",
+  "signals": {
+   "idle_hours": 82,
+   "customer_key": "01099000002",
+   "customer_name": "Test Buyer",
+   "has_email": true,
+   "has_phone": true,
+   "lines": [
+    {
+     "product_name": "Mug",
+     "quantity": 2,
+     "price_when_added": "250.00"
+    }
+   ]
+  },
+  "investigation": {
+   "summary": "Very large cart (4 laptops) left 82h; reminder unanswered.",
+   "likely_cause": "Comparing prices.",
+   "confidence": 0.75,
+   "evidence": [
+    {
+     "fact": "Idle 82h",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "send_cart_reminder": 30
+  },
+  "acceptable": {
+   "offer_discount": [
+    "approval"
+   ],
+   "none": []
+  },
+  "why": "Any discount here is worth far more than 500 EGP: approval (DISC-2)."
+ },
+ {
+  "id": "A5",
+  "title": "Reminder sent 5h ago",
+  "case_type": "abandoned_cart",
+  "subject_type": "cart",
+  "value": "1500.00",
+  "signals": {
+   "idle_hours": 35,
+   "customer_key": "01099000002",
+   "customer_name": "Test Buyer",
+   "has_email": true,
+   "has_phone": true,
+   "lines": [
+    {
+     "product_name": "Mug",
+     "quantity": 2,
+     "price_when_added": "250.00"
+    }
+   ]
+  },
+  "investigation": {
+   "summary": "Reminder sent 5h ago.",
+   "likely_cause": "Too early to tell.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Idle 35h",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "send_cart_reminder": 5
+  },
+  "acceptable": {
+   "none": []
+  },
+  "why": "Wait 24h before a discount (DISC-5)."
+ },
+ {
+  "id": "A6",
+  "title": "Customer refused a delivery last month",
+  "case_type": "abandoned_cart",
+  "subject_type": "cart",
+  "value": "1200.00",
+  "signals": {
+   "idle_hours": 60,
+   "customer_key": "01099000002",
+   "customer_name": "Test Buyer",
+   "has_email": true,
+   "has_phone": true,
+   "lines": [
+    {
+     "product_name": "Mug",
+     "quantity": 2,
+     "price_when_added": "250.00"
+    }
+   ]
+  },
+  "investigation": {
+   "summary": "Reminder unanswered; this customer refused a COD delivery 3 weeks ago.",
+   "likely_cause": "Low intent.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "1 refusal 3 weeks ago",
+     "source": "customer_profile"
+    }
+   ],
+   "risk_factors": [
+    "Recent refusal"
+   ],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {
+   "send_cart_reminder": 30
+  },
+  "acceptable": {
+   "none": []
+  },
+  "why": "DISC-4: no discounts after a refusal in the last 90 days."
+ },
+ {
+  "id": "A7",
+  "title": "5,000 EGP cart idle 40h",
+  "case_type": "abandoned_cart",
+  "subject_type": "cart",
+  "value": "5000.00",
+  "signals": {
+   "idle_hours": 40,
+   "customer_key": "01099000002",
+   "customer_name": "Test Buyer",
+   "has_email": true,
+   "has_phone": true,
+   "lines": [
+    {
+     "product_name": "Mug",
+     "quantity": 2,
+     "price_when_added": "250.00"
+    }
+   ]
+  },
+  "investigation": {
+   "summary": "Cart left 40h; customer browsed again yesterday.",
+   "likely_cause": "Still interested.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Idle 40h",
+     "source": "case_signals"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "send_cart_reminder": [
+    "auto"
+   ]
+  },
+  "why": "Reminder first."
+ },
+ {
+  "id": "T1",
+  "title": "Damaged item, 250 EGP, received back",
+  "case_type": "stale_return",
+  "subject_type": "return",
+  "value": "250.00",
+  "signals": {
+   "order_id": "o9",
+   "reason": "damaged",
+   "product_name": "Headphones",
+   "quantity": 1,
+   "age_hours": 60
+  },
+  "investigation": {
+   "summary": "Damaged on arrival with photos; item back at the warehouse.",
+   "likely_cause": "Courier damage.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "Item received",
+     "source": "returns"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "process_return": [
+    "approval"
+   ]
+  },
+  "why": "A return decision can't be undone: approval."
+ },
+ {
+  "id": "T2",
+  "title": "Damaged item, 900 EGP",
+  "case_type": "stale_return",
+  "subject_type": "return",
+  "value": "900.00",
+  "signals": {
+   "order_id": "o9",
+   "reason": "damaged",
+   "product_name": "Headphones",
+   "quantity": 1,
+   "age_hours": 70
+  },
+  "investigation": {
+   "summary": "Damaged on arrival; refund due.",
+   "likely_cause": "Courier damage.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "Photos provided",
+     "source": "returns"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "process_return": [
+    "human_only",
+    "approval"
+   ]
+  },
+  "why": "Refunds over 300 EGP need a person (RET-2); approving without a refund yet needs approval."
+ },
+ {
+  "id": "T3",
+  "title": "Changed mind, not received yet",
+  "case_type": "stale_return",
+  "subject_type": "return",
+  "value": "1500.00",
+  "signals": {
+   "order_id": "o9",
+   "reason": "changed_mind",
+   "product_name": "Headphones",
+   "quantity": 1,
+   "age_hours": 55
+  },
+  "investigation": {
+   "summary": "Within the 14-day window; item not yet received back.",
+   "likely_cause": "Changed mind.",
+   "confidence": 0.8,
+   "evidence": [
+    {
+     "fact": "Item not received",
+     "source": "returns"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "process_return": [
+    "approval",
+    "human_only"
+   ]
+  },
+  "why": "Approve the return; refund after receipt (RET-3)."
+ },
+ {
+  "id": "T4",
+  "title": "Outside the 14-day window",
+  "case_type": "stale_return",
+  "subject_type": "return",
+  "value": "800.00",
+  "signals": {
+   "order_id": "o9",
+   "reason": "changed_mind",
+   "product_name": "Headphones",
+   "quantity": 1,
+   "age_hours": 60
+  },
+  "investigation": {
+   "summary": "Requested 30 days after delivery.",
+   "likely_cause": "Late request.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "Delivered 30 days before the request",
+     "source": "returns"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "process_return": [
+    "approval",
+    "human_only"
+   ]
+  },
+  "why": "RET-4: likely a rejection, which still needs approval."
+ },
+ {
+  "id": "T5",
+  "title": "Return, unsure investigation",
+  "case_type": "stale_return",
+  "subject_type": "return",
+  "value": "600.00",
+  "signals": {
+   "order_id": "o9",
+   "reason": "not_as_described",
+   "product_name": "Headphones",
+   "quantity": 1,
+   "age_hours": 50
+  },
+  "investigation": {
+   "summary": "Conflicting descriptions from customer and vendor.",
+   "likely_cause": "Unclear.",
+   "confidence": 0.45,
+   "evidence": [
+    {
+     "fact": "Disputed",
+     "source": "returns"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "process_return": [
+    "approval",
+    "human_only"
+   ]
+  },
+  "why": "A person decides."
+ },
+ {
+  "id": "T6",
+  "title": "Refund exactly 300 EGP",
+  "case_type": "stale_return",
+  "subject_type": "return",
+  "value": "300.00",
+  "signals": {
+   "order_id": "o9",
+   "reason": "damaged",
+   "product_name": "Headphones",
+   "quantity": 1,
+   "age_hours": 52
+  },
+  "investigation": {
+   "summary": "Damaged item returned; 300 EGP refund due.",
+   "likely_cause": "Damage.",
+   "confidence": 0.85,
+   "evidence": [
+    {
+     "fact": "Item received",
+     "source": "returns"
+    }
+   ],
+   "risk_factors": [],
+   "mitigating_factors": [],
+   "missing_information": []
+  },
+  "done": {},
+  "acceptable": {
+   "process_return": [
+    "approval"
+   ]
+  },
+  "why": "RET-2 is over 300 EGP: exactly 300 needs approval, not a person."
+ }
+]

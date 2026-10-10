@@ -141,6 +141,33 @@ def test_persistent_rate_limit_raises_rate_limited() -> None:
     assert len(sleeps) == 4
 
 
+def test_a_provider_that_stops_answering_fails_within_the_call_budget() -> None:
+    now = [0.0]
+    timeouts: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        timeout = request.extensions["timeout"]["read"]
+        timeouts.append(timeout)
+        now[0] += timeout  # waits the whole timeout, then gives up
+        raise httpx.ReadTimeout("timed out", request=request)
+
+    def sleep(seconds: float) -> None:
+        now[0] += seconds
+
+    llm = OpenAICompatibleLLM(
+        "https://llm.test/v1",
+        "cc_test",
+        "glm-5.3",
+        transport=httpx.MockTransport(handler),
+        sleep=sleep,
+        clock=lambda: now[0],
+    )
+    with pytest.raises(LLMError, match="unreachable: ReadTimeout"):
+        llm.create(system="s", messages=[], tools=[])
+    assert timeouts == [180, 179]  # the second try only gets what's left of the 360 s budget
+    assert now[0] <= 360
+
+
 def test_client_errors_fail_at_once() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(401, json={"error": {"message": "Invalid API key"}})

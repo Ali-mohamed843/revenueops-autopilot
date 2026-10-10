@@ -66,6 +66,7 @@ source_modules = [
     "revenueops.executor",
     "revenueops.simulation",
     "revenueops.pipeline",
+    "revenueops.evals",
 ]
 forbidden_modules = ["revenueops.adapters.storeforge"]
 
